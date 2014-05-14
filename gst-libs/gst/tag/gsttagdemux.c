@@ -1796,6 +1796,19 @@ gst_tag_demux_pad_query (GstPad * pad, GstObject * parent, GstQuery * query)
       }
       break;
     }
+    case GST_QUERY_CAPS:
+    {
+
+      /* We can hijack caps query if we typefind already */
+      if (demux->priv->src_caps) {
+        gst_query_set_caps_result (query, demux->priv->src_caps);
+        res = TRUE;
+      } else {
+        res = gst_pad_query_default (pad, parent, query);
+      }
+      break;
+    }
+
     default:
       res = gst_pad_query_default (pad, parent, query);
       break;
