@@ -1413,9 +1413,10 @@ gst_video_decoder_sink_event_default (GstVideoDecoder * decoder,
 
       /* Error out even if EOS was ok when we had input, but no output */
       if (ret && priv->had_input_data && !priv->had_output_data) {
-        GST_ELEMENT_ERROR (decoder, STREAM, DECODE,
+        /* GST_ELEMENT_ERROR (decoder, STREAM, DECODE,
             ("No valid frames decoded before end of stream"),
-            ("no valid frames found"));
+            ("no valid frames found")); */
+        GST_ERROR_OBJECT(decoder, "No valid frames decoded before end of stream");
       }
 
       /* Forward EOS immediately. This is required because no
