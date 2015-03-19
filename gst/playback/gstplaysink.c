@@ -2485,7 +2485,7 @@ gen_text_chain (GstPlaySink * playsink)
           G_TYPE_BOOLEAN);
       if (elem) {
         /* make sure the sparse subtitles don't participate in the preroll */
-        g_object_set (elem, "async", FALSE, NULL);
+        //g_object_set (elem, "async", FALSE, NULL);
         GST_DEBUG_OBJECT (playsink, "adding custom text sink");
         gst_bin_add (bin, chain->sink);
         /* NOTE streamsynchronizer needs streams decoupled */
