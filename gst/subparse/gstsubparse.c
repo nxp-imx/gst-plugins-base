@@ -273,24 +273,20 @@ gst_sub_parse_src_event (GstPad * pad, GstObject * parent, GstEvent * event)
         goto beach;
       }
 
+      /* Apply the seek to our segment */
+      gst_segment_do_seek (&self->segment, rate, format, flags,
+          start_type, start, stop_type, stop, &update);
+
+      GST_DEBUG_OBJECT (self, "segment after seek: %" GST_SEGMENT_FORMAT,
+          &self->segment);
+
       /* Convert that seek to a seeking in bytes at position 0,
          FIXME: could use an index */
       ret = gst_pad_push_event (self->sinkpad,
           gst_event_new_seek (rate, GST_FORMAT_BYTES, flags,
               GST_SEEK_TYPE_SET, 0, GST_SEEK_TYPE_NONE, 0));
 
-      if (ret) {
-        /* Apply the seek to our segment */
-        gst_segment_do_seek (&self->segment, rate, format, flags,
-            start_type, start, stop_type, stop, &update);
-
-        GST_DEBUG_OBJECT (self, "segment after seek: %" GST_SEGMENT_FORMAT,
-            &self->segment);
-
-        /* will mark need_segment when receiving segment from upstream,
-         * after FLUSH and all that has happened,
-         * rather than racing with chain */
-      } else {
+      if (!ret) {
         GST_WARNING_OBJECT (self, "seek to 0 bytes failed");
       }
 
@@ -1805,9 +1801,10 @@ gst_sub_parse_sink_event (GstPad * pad, GstObject * parent, GstEvent * event)
       gst_event_parse_segment (event, &s);
       if (s->format == GST_FORMAT_TIME)
         gst_event_copy_segment (event, &self->segment);
-      GST_DEBUG_OBJECT (self, "newsegment (%s)",
-          gst_format_get_name (self->segment.format));
+      GST_DEBUG_OBJECT (self, "newsegment (%s) %" GST_SEGMENT_FORMAT,
+          gst_format_get_name (self->segment.format), &self->segment);
       self->segment_seqnum = gst_event_get_seqnum (event);
+      self->need_segment = TRUE;
 
       /* if not time format, we'll either start with a 0 timestamp anyway or
        * it's following a seek in which case we'll have saved the requested
