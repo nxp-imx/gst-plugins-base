@@ -242,7 +242,8 @@ gst_gl_filter_fixate_caps (GstBaseTransform * bt,
     GstPadDirection direction, GstCaps * caps, GstCaps * othercaps)
 {
   GstStructure *ins, *outs;
-  const GValue *from_par, *to_par;
+  const GValue *from_par, *to_par, *from_fps;
+  gint framerate_num, framerate_den;
   GValue fpar = { 0, }, tpar = {
     0,
   };
@@ -255,6 +256,16 @@ gst_gl_filter_fixate_caps (GstBaseTransform * bt,
 
   ins = gst_caps_get_structure (caps, 0);
   outs = gst_caps_get_structure (othercaps, 0);
+
+  /* replace frame rate */
+  from_fps = gst_structure_get_value (ins, "framerate");
+  if (from_fps) {
+      gst_structure_set_value (outs, "framerate", from_fps);
+  } else {
+    if (gst_structure_get_fraction (ins, "framerate", &framerate_num, &framerate_den))
+      gst_structure_set (outs, "framerate", GST_TYPE_FRACTION, framerate_num, framerate_den,
+          NULL);
+  }
 
   from_par = gst_structure_get_value (ins, "pixel-aspect-ratio");
   to_par = gst_structure_get_value (outs, "pixel-aspect-ratio");
