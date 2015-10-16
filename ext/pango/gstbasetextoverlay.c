@@ -2316,14 +2316,42 @@ gst_base_text_overlay_push_frame (GstBaseTextOverlay * overlay,
     }
   }
 
-  video_frame = gst_buffer_make_writable (video_frame);
-
   if (overlay->attach_compo_to_buffer) {
     GST_DEBUG_OBJECT (overlay, "Attaching text overlay image to video buffer");
+    video_frame = gst_buffer_make_writable (video_frame);
     gst_buffer_add_video_overlay_composition_meta (video_frame,
         overlay->composition);
     /* FIXME: emulate shaded background box if want_shading=true */
     goto done;
+  }
+
+  gint idx = 0;
+  gboolean mem_rdonly = FALSE;
+  GstMemory *mem;
+
+  while (mem = gst_buffer_get_memory(video_frame, idx++)) {
+    if (GST_MEMORY_IS_READONLY(mem)) {
+      gst_memory_unref (mem);
+      mem_rdonly = TRUE;
+      break;
+    }
+    gst_memory_unref (mem);
+  }
+
+  if (mem_rdonly) {
+    GstBuffer *new_buf = gst_buffer_copy_region (video_frame,
+        GST_BUFFER_COPY_ALL | GST_BUFFER_COPY_DEEP, 0, -1);
+
+    if (!new_buf) {
+      GST_WARNING_OBJECT(overlay,
+                "buffer memory read only, but copy memory failed");
+      goto done;
+    } else {
+      gst_buffer_unref (video_frame);
+      video_frame = new_buf;
+    }
+  } else {
+    video_frame = gst_buffer_make_writable (video_frame);
   }
 
   if (!gst_video_frame_map (&frame, &overlay->info, video_frame,
