@@ -2508,6 +2508,15 @@ gst_audio_decoder_sink_eventfunc (GstAudioDecoder * dec, GstEvent * event)
             ("no valid frames found"));
       }
 
+      /* send taglist if no valid frame is decoded util EOS */
+      if (dec->priv->taglist && dec->priv->taglist_changed) {
+        GST_DEBUG_OBJECT (dec, "codec tag %" GST_PTR_FORMAT, dec->priv->taglist);
+        if (!gst_tag_list_is_empty (dec->priv->taglist))
+          gst_audio_decoder_push_event (dec,
+              gst_event_new_tag (gst_tag_list_ref (dec->priv->taglist)));
+        dec->priv->taglist_changed = FALSE;
+      }
+
       /* Forward EOS because no buffer or serialized event will come after
        * EOS and nothing could trigger another _finish_frame() call. */
       if (dec->priv->pending_events)

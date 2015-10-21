@@ -1427,6 +1427,14 @@ gst_video_decoder_sink_event_default (GstVideoDecoder * decoder,
        * parent class' ::sink_event() until a later time.
        */
       forward_immediate = TRUE;
+
+      /* send taglist if no valid frame is decoded util EOS */
+      if (decoder->priv->tags && decoder->priv->tags_changed) {
+        gst_video_decoder_push_event (decoder,
+            gst_event_new_tag (gst_tag_list_ref (decoder->priv->tags)));
+        decoder->priv->tags_changed = FALSE;
+      }
+
       break;
     }
     case GST_EVENT_GAP:
