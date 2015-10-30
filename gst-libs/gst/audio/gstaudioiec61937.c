@@ -161,14 +161,16 @@ gst_audio_iec61937_payload (const guint8 * src, guint src_n, guint8 * dst,
     guint dst_n, const GstAudioRingBufferSpec * spec, gint endianness)
 {
   guint i, tmp;
-#if G_BYTE_ORDER == G_BIG_ENDIAN
-  guint8 zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6,
-      seven = 7;
-#else
-  /* We need to send the data byte-swapped */
-  guint8 zero = 1, one = 0, two = 3, three = 2, four = 5, five = 4, six = 7,
-      seven = 6;
-#endif
+  guint8 zero = 0, one = 1, two = 2, three = 3, four = 4, five = 5, six = 6;
+  guint8 seven = 7;
+
+  if (G_BYTE_ORDER != endianness) {
+    /* We need to send the data byte-swapped */
+    zero = one--;
+    two = three--;
+    four = five--;
+    six = seven--;
+  }
 
   g_return_val_if_fail (src != NULL, FALSE);
   g_return_val_if_fail (dst != NULL, FALSE);
