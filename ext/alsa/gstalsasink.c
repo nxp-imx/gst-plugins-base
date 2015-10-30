@@ -451,10 +451,12 @@ set_hwparams (GstAlsaSink * alsa)
     /* Try to use big endian first else fallback to le and swap bytes */
     if (snd_pcm_hw_params_set_format (alsa->handle, params, alsa->format) < 0) {
       alsa->format = SND_PCM_FORMAT_S16_LE;
-      alsa->need_swap = TRUE;
+      /* swap needed if system is big endian */
+      alsa->need_swap = (G_BYTE_ORDER == G_BIG_ENDIAN);
       GST_DEBUG_OBJECT (alsa, "falling back to little endian with swapping");
     } else {
-      alsa->need_swap = FALSE;
+      /* swap needed if system is little endian */
+      alsa->need_swap = (G_BYTE_ORDER != G_BIG_ENDIAN);
     }
   }
   CHECK (snd_pcm_hw_params_set_format (alsa->handle, params, alsa->format),
