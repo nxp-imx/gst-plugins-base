@@ -700,7 +700,6 @@ gst_alsa_probe_supported_formats (GstObject * obj, gchar * device,
     snd_pcm_t * handle, const GstCaps * template_caps)
 {
   snd_pcm_hw_params_t *hw_params;
-  snd_pcm_stream_t stream_type;
   GstCaps *caps;
   GstCaps *dsd_caps;
   gint err;
@@ -708,8 +707,6 @@ gst_alsa_probe_supported_formats (GstObject * obj, gchar * device,
   snd_pcm_hw_params_malloc (&hw_params);
   if ((err = snd_pcm_hw_params_any (handle, hw_params)) < 0)
     goto error;
-
-  stream_type = snd_pcm_stream (handle);
 
   /* Try detecting PCM */
 
@@ -761,17 +758,6 @@ gst_alsa_probe_supported_formats (GstObject * obj, gchar * device,
     GST_INFO_OBJECT (obj, "DSD support not detected");
   }
 
-  /* Try opening IEC958 device to see if we can support that format (playback
-   * only for now but we could add SPDIF capture later) */
-  if (stream_type == SND_PCM_STREAM_PLAYBACK) {
-    snd_pcm_t *pcm = gst_alsa_open_iec958_pcm (obj, device);
-
-    if (G_LIKELY (pcm)) {
-      gst_caps_append (caps, gst_caps_from_string (PASSTHROUGH_CAPS));
-      snd_pcm_close (pcm);
-    }
-  }
-
   snd_pcm_hw_params_free (hw_params);
   return caps;
 
@@ -789,6 +775,53 @@ subroutine_error:
     gst_caps_replace (&caps, NULL);
     return NULL;
   }
+}
+
+/*
+ * gst_alsa_probe_supported_formats:
+ *
+ * Takes the template caps and returns the subset which is actually
+ * supported by this device.
+ */
+gboolean gst_alsa_iec958_formats_supported (GstObject * obj, gchar * device,
+    snd_pcm_t ** handle)
+{
+  snd_pcm_stream_t stream_type;
+  gboolean supported = FALSE;
+  snd_pcm_t *pcm;
+  gint err;
+
+  /* Try opening IEC958 device to see if we can support that format (playback
+   * only for now but we could add SPDIF capture later) */
+  stream_type = snd_pcm_stream (*handle);
+  if (stream_type == SND_PCM_STREAM_PLAYBACK) {
+    /* Close the exiting device to re-open it as iec958 device*/
+    err = snd_pcm_close(*handle);
+    if (G_UNLIKELY (err < 0)) {
+      GST_DEBUG_OBJECT (obj, " failed closing alsa device: %s",
+        snd_strerror (err));
+      return FALSE;
+    }
+
+    pcm = gst_alsa_open_iec958_pcm(GST_OBJECT (obj), device);
+    if (G_LIKELY (pcm)) {
+      supported = TRUE;
+      snd_pcm_close (pcm);
+    }
+
+    /* Reopen device in raw audio mode*/
+    err = snd_pcm_open (handle, device, SND_PCM_STREAM_PLAYBACK,
+        SND_PCM_NONBLOCK);
+    if (G_UNLIKELY (err < 0)) {
+       GST_DEBUG_OBJECT (obj, "failed re-opening alsa device: %s",
+           snd_strerror (err));
+    }
+    return supported;
+  }
+
+  GST_DEBUG_OBJECT (obj, "only supported for playback");
+  return FALSE;
+
 }
 
 /* returns the card name when the device number is unknown or -1 */
