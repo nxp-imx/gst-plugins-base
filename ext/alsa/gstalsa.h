@@ -58,6 +58,10 @@ GstCaps * gst_alsa_probe_supported_formats (GstObject      * obj,
                                             snd_pcm_t      * handle,
                                             const GstCaps  * template_caps);
 
+gboolean gst_alsa_iec958_formats_supported (GstObject * obj,
+                                            gchar * device,
+                                            snd_pcm_t ** handle);
+
 gchar   * gst_alsa_find_device_name (GstObject        * obj,
                                      const gchar      * device,
                                      snd_pcm_t        * handle,
