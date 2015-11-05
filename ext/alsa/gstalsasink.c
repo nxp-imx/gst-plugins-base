@@ -947,6 +947,9 @@ gst_alsasink_prepare (GstAudioSink * asink, GstAudioRingBufferSpec * spec)
 
   alsa = GST_ALSA_SINK (asink);
 
+  if (!alsasink_parse_spec (alsa, spec))
+    goto spec_parse;
+
   if (alsa->iec958) {
     snd_pcm_close (alsa->handle);
     alsa->handle = gst_alsa_open_iec958_pcm (GST_OBJECT (alsa), alsa->device);
@@ -954,9 +957,6 @@ gst_alsasink_prepare (GstAudioSink * asink, GstAudioRingBufferSpec * spec)
       goto no_iec958;
     }
   }
-
-  if (!alsasink_parse_spec (alsa, spec))
-    goto spec_parse;
 
   CHECK (set_hwparams (alsa), hw_params_failed);
   CHECK (set_swparams (alsa), sw_params_failed);
