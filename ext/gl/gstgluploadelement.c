@@ -320,9 +320,19 @@ again:
   /* basetransform doesn't unref if they're the same */
   if (buffer == *outbuf)
     gst_buffer_unref (*outbuf);
-  else
+  else {
+    GstVideoCropMeta *incropmeta, *outcropmeta;
+    /* add video crop meta to out buffer if need */
+    incropmeta = gst_buffer_get_video_crop_meta (buffer);
+    if (incropmeta) {
+      outcropmeta = gst_buffer_add_video_crop_meta (*outbuf);
+      outcropmeta->x = incropmeta->x;
+      outcropmeta->y = incropmeta->y;
+      outcropmeta->width = incropmeta->width;
+      outcropmeta->height = incropmeta->height;
+    }
     bclass->copy_metadata (bt, buffer, *outbuf);
-
+  }
   return GST_FLOW_OK;
 }
 
