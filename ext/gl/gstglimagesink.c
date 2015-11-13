@@ -814,6 +814,8 @@ gst_glimage_sink_init (GstGLImageSink * glimage_sink)
   glimage_sink->handle_events = TRUE;
   glimage_sink->ignore_alpha = TRUE;
   glimage_sink->overlay_compositor = NULL;
+  glimage_sink->cropmeta = NULL;
+  glimage_sink->prev_cropmeta = NULL;
 
   glimage_sink->mview_output_mode = DEFAULT_MULTIVIEW_MODE;
   glimage_sink->mview_output_flags = DEFAULT_MULTIVIEW_FLAGS;
@@ -1386,6 +1388,12 @@ gst_glimage_sink_change_state (GstElement * element, GstStateChange transition)
 
       _set_other_context (glimage_sink, NULL);
       _set_display (glimage_sink, NULL);
+
+      glimage_sink->cropmeta = NULL;
+      if (glimage_sink->prev_cropmeta)
+        g_slice_free(GstVideoCropMeta, glimage_sink->prev_cropmeta);
+      glimage_sink->prev_cropmeta = NULL;
+
       break;
     default:
       break;
@@ -1898,6 +1906,8 @@ gst_glimage_sink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
       GST_VIDEO_INFO_HEIGHT (&glimage_sink->out_info),
       GST_VIDEO_SINK_WIDTH (glimage_sink),
       GST_VIDEO_SINK_HEIGHT (glimage_sink));
+
+  glimage_sink->cropmeta = gst_buffer_get_video_crop_meta (buf);
 
   /* Ask the underlying window to redraw its content */
   if (!gst_glimage_sink_redisplay (glimage_sink))
@@ -2431,6 +2441,54 @@ gst_glimage_sink_on_draw (GstGLImageSink * gl_sink)
     }
 
     gst_gl_shader_use (gl_sink->redisplay_shader);
+
+    if (gl_sink->cropmeta) {
+      gint width = GST_VIDEO_SINK_WIDTH (gl_sink);
+      gint height = GST_VIDEO_SINK_HEIGHT (gl_sink);
+
+      if (!gl_sink->prev_cropmeta){
+        /* Initialize the previous crop meta and set all memroy to zero */
+        gl_sink->prev_cropmeta = (GstVideoCropMeta *) g_slice_new0(GstVideoCropMeta);
+      }
+
+      /* If crop meta not equal to the previous, recalculate the vertices */
+      if (gl_sink->prev_cropmeta->x != gl_sink->cropmeta->x
+        || gl_sink->prev_cropmeta->y != gl_sink->cropmeta->y
+        || gl_sink->prev_cropmeta->width != gl_sink->cropmeta->width
+        || gl_sink->prev_cropmeta->height != gl_sink->cropmeta->height){
+
+	GLfloat crop_vertices[] = {
+	     1.0f,  1.0f, 0.0f, 1.0f, 0.0f,
+	    -1.0f,  1.0f, 0.0f, 0.0f, 0.0f,
+	    -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+	     1.0f, -1.0f, 0.0f, 1.0f, 1.0f
+	};
+
+        crop_vertices[8] = (float)(gl_sink->cropmeta->x) / width;
+        crop_vertices[9] = (float)(gl_sink->cropmeta->y) / height;
+
+        crop_vertices[3] = (float)(gl_sink->cropmeta->width + gl_sink->cropmeta->x) / width;
+        crop_vertices[4] = crop_vertices[9];
+
+        crop_vertices[13] = crop_vertices[8];
+        crop_vertices[14] = (float)(gl_sink->cropmeta->height + gl_sink->cropmeta->y) / height;
+
+        crop_vertices[18] = crop_vertices[3];
+        crop_vertices[19] = crop_vertices[14];
+
+        gl->BindBuffer (GL_ARRAY_BUFFER, gl_sink->vertex_buffer);
+        gl->BufferData (GL_ARRAY_BUFFER, 4 * 5 * sizeof (GLfloat), crop_vertices,
+            GL_STATIC_DRAW);
+
+        gl->BindBuffer (GL_ARRAY_BUFFER, 0);
+
+        /* Store the previous crop meta */
+        gl_sink->prev_cropmeta->x = gl_sink->cropmeta->x;
+        gl_sink->prev_cropmeta->y = gl_sink->cropmeta->y;
+        gl_sink->prev_cropmeta->width = gl_sink->cropmeta->width;
+        gl_sink->prev_cropmeta->height = gl_sink->cropmeta->height;
+      }
+    }
 
     if (gl->GenVertexArrays)
       gl->BindVertexArray (gl_sink->vao);

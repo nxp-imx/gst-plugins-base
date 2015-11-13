@@ -109,6 +109,9 @@ struct _GstGLImageSink
     guint window_width;
     guint window_height;
 
+    GstVideoCropMeta *cropmeta;
+    GstVideoCropMeta *prev_cropmeta;
+
     GstVideoRectangle display_rect;
 
     GstGLShader *redisplay_shader;
