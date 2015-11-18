@@ -816,6 +816,8 @@ gst_glimage_sink_init (GstGLImageSink * glimage_sink)
   glimage_sink->overlay_compositor = NULL;
   glimage_sink->cropmeta = NULL;
   glimage_sink->prev_cropmeta = NULL;
+  glimage_sink->frame_showed = 0;
+  glimage_sink->run_time = 0;
 
   glimage_sink->mview_output_mode = DEFAULT_MULTIVIEW_MODE;
   glimage_sink->mview_output_flags = DEFAULT_MULTIVIEW_FLAGS;
@@ -1298,7 +1300,10 @@ gst_glimage_sink_change_state (GstElement * element, GstStateChange transition)
 
   switch (transition) {
     case GST_STATE_CHANGE_PLAYING_TO_PAUSED:
+    {
+      glimage_sink->run_time = gst_element_get_start_time (GST_ELEMENT (glimage_sink));
       break;
+    }
     case GST_STATE_CHANGE_PAUSED_TO_READY:
     {
       GstBuffer *buf[2];
@@ -1394,6 +1399,14 @@ gst_glimage_sink_change_state (GstElement * element, GstStateChange transition)
         g_slice_free(GstVideoCropMeta, glimage_sink->prev_cropmeta);
       glimage_sink->prev_cropmeta = NULL;
 
+      if (glimage_sink->run_time > 0) {
+        g_print ("Total showed frames (%" G_GUINT64_FORMAT "), playing for (%"GST_TIME_FORMAT"), fps (%.3f).\n",
+                glimage_sink->frame_showed, GST_TIME_ARGS (glimage_sink->run_time),
+                (gfloat)GST_SECOND * glimage_sink->frame_showed / glimage_sink->run_time);
+      }
+
+      glimage_sink->frame_showed = 0;
+      glimage_sink->run_time = 0;
       break;
     default:
       break;
@@ -1920,6 +1933,8 @@ gst_glimage_sink_show_frame (GstVideoSink * vsink, GstBuffer * buf)
         ("%s", "Quit requested"), (NULL));
     return GST_FLOW_ERROR;
   }
+
+  glimage_sink->frame_showed++;
 
   return GST_FLOW_OK;
 
