@@ -1727,6 +1727,10 @@ gst_base_text_overlay_render_pangocairo (GstBaseTextOverlay * overlay,
   GstBuffer *buffer;
   GstMapInfo map;
 
+  /* i.MX special, will cause text a little small */
+  overlay->width = GST_ROUND_DOWN_8 (overlay->width);
+  overlay->height = GST_ROUND_DOWN_8 (overlay->height);
+
   if (overlay->auto_adjust_size) {
     /* 640 pixel is default */
     scalef_x = scalef_y = (double) (overlay->width) / DEFAULT_SCALE_BASIS;
@@ -1886,6 +1890,9 @@ gst_base_text_overlay_render_pangocairo (GstBaseTextOverlay * overlay,
   height = ceil (height * overlay->render_scale);
   scalef_x *= overlay->render_scale;
   scalef_y *= overlay->render_scale;
+
+ GST_DEBUG_OBJECT (overlay, "Rendering with width %d and height %d "
+      , width, height);
 
   if (width <= 0 || height <= 0) {
     GST_DEBUG_OBJECT (overlay,
