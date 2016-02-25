@@ -45,6 +45,8 @@ struct _GstGLColorConvertElement
   GstGLBaseFilter        parent;
 
   GstGLColorConvert *convert;
+
+  gboolean disable_passthrough;
 };
 
 struct _GstGLColorConvertElementClass
