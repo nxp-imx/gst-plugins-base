@@ -909,7 +909,11 @@ _gst_gl_color_convert_set_caps_unlocked (GstGLColorConvert * convert,
   convert->priv->to_texture_target = to_target;
   convert->initted = FALSE;
 
-  convert->passthrough = passthrough;
+  /* We may disable passthrough via an external property
+   * By the way, when glconvertelement is in passthrough mode, 
+   * the plugin will not call gst_gl_color_convert_perform().*/
+
+  //convert->passthrough = passthrough;
 #ifndef GST_DISABLE_GST_DEBUG
   if (G_UNLIKELY (convert->passthrough))
     GST_DEBUG_OBJECT (convert,
