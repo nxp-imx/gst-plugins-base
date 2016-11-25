@@ -37,6 +37,10 @@
 #include <gst/gl/gstglphymemory.h>
 #endif
 
+#if GST_GL_HAVE_IONDMA
+#include <gst/gl/gstglmemorydma.h>
+#endif
+
 GST_DEBUG_CATEGORY_STATIC (gst_gl_download_element_debug);
 #define GST_CAT_DEFAULT gst_gl_download_element_debug
 
@@ -1322,11 +1326,26 @@ gst_gl_download_element_prepare_output_buffer (GstBaseTransform * bt,
   GstBaseTransformClass *bclass = GST_BASE_TRANSFORM_GET_CLASS (bt);
   GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
   GstGLSyncMeta *in_sync_meta;
+  GstCaps *src_caps = gst_pad_get_current_caps (bt->srcpad);
   gint i, n;
   GstGLMemory *glmem;
 
-#if GST_GL_HAVE_PHYMEM
   glmem = gst_buffer_peek_memory (inbuf, 0);
+#if GST_GL_HAVE_IONDMA
+  if (gst_is_gl_memory_dma (glmem)) {
+    GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
+    GstVideoInfo info;
+
+    gst_video_info_from_caps (&info, src_caps);
+    *outbuf = gst_gl_memory_dma_buffer_to_gstbuffer (context, &info, inbuf);
+
+    GST_DEBUG_OBJECT (dl, "gl download with dma buf.");
+
+    return GST_FLOW_OK;
+  }
+#endif
+
+#if GST_GL_HAVE_PHYMEM
   if (gst_is_gl_physical_memory (glmem)) {
     GstCaps *src_caps;
     GstVideoInfo info;
@@ -1560,6 +1579,7 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   GstStructure *config;
   GstVideoInfo info;
   gsize size;
+  GstVideoFormat fmt;
 
   if (!GST_BASE_TRANSFORM_CLASS (parent_class)->propose_allocation (bt,
           decide_query, query))
@@ -1577,6 +1597,8 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
 
   if (!gst_video_info_from_caps (&info, caps))
     goto invalid_caps;
+
+  fmt = GST_VIDEO_INFO_FORMAT (&info);
 
 #if GST_GL_HAVE_PLATFORM_EGL && defined(HAVE_NVMM)
   if (!pool && decide_query) {
@@ -1605,8 +1627,15 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   }
 #endif
 
+#if GST_GL_HAVE_IONDMA
+  if (!pool && (fmt == GST_VIDEO_FORMAT_RGBA || fmt == GST_VIDEO_FORMAT_RGB16)) {
+    allocator = gst_gl_memory_dma_allocator_obtain ();
+    GST_DEBUG_OBJECT (bt, "obtain dma memory allocator %p.", allocator);
+  }
+#endif
+
 #if GST_GL_HAVE_PHYMEM
-  if (!pool && gst_is_gl_physical_memory_supported_fmt (&info)) {
+  if (!pool && !allocator && gst_is_gl_physical_memory_supported_fmt (&info)) {
     allocator = gst_phy_mem_allocator_obtain ();
     GST_DEBUG_OBJECT (bt, "obtain physical memory allocator %p.", allocator);
   }
@@ -1640,7 +1669,8 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   if (context->gl_vtable->FenceSync)
     gst_query_add_allocation_meta (query, GST_GL_SYNC_META_API_TYPE, NULL);
 
-  gst_query_add_allocation_pool (query, pool, size, 1, 0);
+  //propose 3 buffers for better performance
+  gst_query_add_allocation_pool (query, pool, size, 3, 0);
 
   gst_object_unref (pool);
   return TRUE;
