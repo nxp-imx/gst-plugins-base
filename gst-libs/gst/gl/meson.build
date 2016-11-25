@@ -572,6 +572,12 @@ if need_platform_egl != 'no'
       gl_misc_deps += allocators_dep
       glconf.set('GST_GL_HAVE_DMABUF', 1)
       if cc.has_header('linux/ion.h')
+          gl_sources += [
+            'gstglmemorydma.c',
+          ]
+          gl_headers += [
+            'gstglmemorydma.h',
+          ]
         glconf.set('GST_GL_HAVE_IONDMA', 1)
       endif
     endif
