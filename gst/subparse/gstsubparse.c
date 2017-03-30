@@ -282,6 +282,11 @@ gst_sub_parse_src_event (GstPad * pad, GstObject * parent, GstEvent * event)
 
       /* Convert that seek to a seeking in bytes at position 0,
          FIXME: could use an index */
+      if (rate < 0) {
+        rate = 1.0;
+        GST_WARNING_OBJECT (self, "Only can push positive rate upstream");
+      }
+
       ret = gst_pad_push_event (self->sinkpad,
           gst_event_new_seek (rate, GST_FORMAT_BYTES, flags,
               GST_SEEK_TYPE_SET, 0, GST_SEEK_TYPE_NONE, 0));
