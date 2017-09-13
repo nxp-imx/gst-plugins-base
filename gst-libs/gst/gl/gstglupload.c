@@ -1445,6 +1445,7 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
   GstVideoInfo *out_info = &dmabuf->out_info;
   guint n_planes;
   GstVideoMeta *meta;
+  GstVideoCropMeta *crop;
   guint n_mem;
   GstMemory *mems[GST_VIDEO_MAX_PLANES];
   GstMemory *previous_mem = NULL;
@@ -1455,6 +1456,7 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
   n_mem = gst_buffer_n_memory (buffer);
   meta = gst_buffer_get_video_meta (buffer);
+  crop = gst_buffer_get_video_crop_meta(buffer);
 
   if (!dmabuf->upload->context->gl_vtable->EGLImageTargetTexture2D)
     return FALSE;
@@ -1525,6 +1527,15 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
       in_info->offset[i] = meta->offset[i];
       in_info->stride[i] = meta->stride[i];
     }
+  }
+  
+  if (crop) {
+    in_info->width = MIN (crop->width, in_info->width);
+    in_info->height = MIN (crop->height, in_info->height);
+
+    GST_DEBUG_OBJECT (dmabuf->upload, "got crop meta (%d)x(%d)",
+        in_info->width, in_info->height);
+    gst_buffer_remove_meta (buffer, (GstMeta *)crop);
   }
 
   /* We cannot have multiple dmabuf per plane */
