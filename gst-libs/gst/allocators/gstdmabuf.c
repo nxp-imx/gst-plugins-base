@@ -156,7 +156,7 @@ gst_dmabuf_allocator_alloc (GstAllocator * allocator, gint fd, gsize size)
 {
   g_return_val_if_fail (GST_IS_DMABUF_ALLOCATOR (allocator), NULL);
 
-  return gst_fd_allocator_alloc (allocator, fd, size, GST_FD_MEMORY_FLAG_NONE);
+  return gst_fd_allocator_alloc (allocator, fd, size, GST_FD_MEMORY_FLAG_KEEP_MAPPED);
 }
 
 /**
