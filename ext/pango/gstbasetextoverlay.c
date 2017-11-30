@@ -2336,7 +2336,9 @@ gst_base_text_overlay_push_frame (GstBaseTextOverlay * overlay,
   gboolean mem_rdonly = FALSE;
   GstMemory *mem;
 
-  while (mem = gst_buffer_get_memory(video_frame, idx++)) {
+  gint n_mem = gst_buffer_n_memory (video_frame);
+
+  while (idx < n_mem && (mem = gst_buffer_get_memory(video_frame, idx++))) {
     if (GST_MEMORY_IS_READONLY(mem)) {
       gst_memory_unref (mem);
       mem_rdonly = TRUE;
