@@ -11,3 +11,8 @@ subdir('riff')
 subdir('app')
 # FIXME: gl deps are automagic
 subdir('gl')
+
+imxcommon_header = [
+  'gstimxcommon.h',
+]
+install_headers(imxcommon_header)
