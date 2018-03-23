@@ -29,6 +29,7 @@
 #include <gst/allocators/gstphysmemory.h>
 #include <gst/allocators/gstdrmdumb.h>
 #include <gst/allocators/gstshmallocator.h>
+#include <gst/allocators/gstdmabufmeta.h>
 
 #endif /* __GST_ALLOCATORS_H__ */
 
