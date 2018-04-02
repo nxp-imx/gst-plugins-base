@@ -7,6 +7,7 @@ gst_allocators_headers = files([
   'gstdrmdumb.h',
   'gstshmallocator.h',
   'gstdmabufmeta.h',
+  'gstphymemmeta.h',
 ])
 install_headers(gst_allocators_headers, subdir : 'gstreamer-1.0/gst/allocators/')
 
@@ -17,6 +18,7 @@ gst_allocators_sources = files([
   'gstphysmemory.c',
   'gstshmallocator.c',
   'gstdmabufmeta.c',
+  'gstphymemmeta.c',
 ])
 
 gst_allocators_cargs = [
@@ -44,7 +46,7 @@ gstallocators = library('gstallocators-@0@'.format(api_version),
   soversion : soversion,
   darwin_versions : osxversion,
   install : true,
-  dependencies : [libdrm_dep, gst_dep],
+  dependencies : [libdrm_dep, gst_dep, video_dep],
 )
 
 pkg_name = 'gstreamer-allocators-1.0'
