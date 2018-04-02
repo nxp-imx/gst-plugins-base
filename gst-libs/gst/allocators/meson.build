@@ -10,6 +10,13 @@ gst_allocators_headers = files([
   'gstphymemmeta.h',
   'gstallocatorphymem.h',
 ])
+
+if cc.has_header('linux/ion.h')
+  gst_allocators_headers += [
+    'gstionmemory.h',
+  ]
+endif
+
 install_headers(gst_allocators_headers, subdir : 'gstreamer-1.0/gst/allocators/')
 
 gst_allocators_sources = files([
@@ -40,7 +47,14 @@ elif cc.has_function('shm_open')
   ]
 endif
 
+if cc.has_header('linux/ion.h')
+  gst_allocators_sources += [
+    'gstionmemory.c',
+  ]
+endif
+
 gstallocators = library('gstallocators-@0@'.format(api_version),
+
   gst_allocators_sources,
   c_args : gst_allocators_cargs,
   include_directories: [configinc, libsinc],
