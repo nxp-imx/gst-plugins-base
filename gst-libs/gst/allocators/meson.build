@@ -8,6 +8,7 @@ gst_allocators_headers = files([
   'gstshmallocator.h',
   'gstdmabufmeta.h',
   'gstphymemmeta.h',
+  'gstallocatorphymem.h',
 ])
 install_headers(gst_allocators_headers, subdir : 'gstreamer-1.0/gst/allocators/')
 
@@ -19,6 +20,7 @@ gst_allocators_sources = files([
   'gstshmallocator.c',
   'gstdmabufmeta.c',
   'gstphymemmeta.c',
+  'gstallocatorphymem.c',
 ])
 
 gst_allocators_cargs = [
