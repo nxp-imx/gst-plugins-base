@@ -30,6 +30,7 @@
 #include <gst/allocators/gstdrmdumb.h>
 #include <gst/allocators/gstshmallocator.h>
 #include <gst/allocators/gstdmabufmeta.h>
+#include <gst/allocators/gstallocatorphymem.h>
 
 #endif /* __GST_ALLOCATORS_H__ */
 
