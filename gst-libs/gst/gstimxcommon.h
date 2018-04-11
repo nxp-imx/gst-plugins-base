@@ -41,7 +41,7 @@ extern "C" {
 #define IMX_GST_PLUGIN_DEFINE(name, description, initfunc)\
   GST_PLUGIN_DEFINE(GST_VERSION_MAJOR,\
       GST_VERSION_MINOR,\
-      name.imx,\
+      name, \
       description,\
       initfunc,\
       VERSION,\
