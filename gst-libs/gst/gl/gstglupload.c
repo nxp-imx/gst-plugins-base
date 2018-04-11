@@ -54,6 +54,10 @@
 #include "gstglphymemory.h"
 #endif
 
+#if GST_GL_HAVE_IONDMA
+#include <gst/allocators/gstionmemory.h>
+#endif
+
 /**
  * SECTION:gstglupload
  * @title: GstGLUpload
@@ -70,6 +74,8 @@
 #define USING_GLES(context) (gst_gl_context_check_gl_version (context, GST_GL_API_GLES, 1, 0))
 #define USING_GLES2(context) (gst_gl_context_check_gl_version (context, GST_GL_API_GLES2, 2, 0))
 #define USING_GLES3(context) (gst_gl_context_check_gl_version (context, GST_GL_API_GLES2, 3, 0))
+
+#define DEFAULT_ALIGN 16
 
 GST_DEBUG_CATEGORY_STATIC (gst_gl_upload_debug);
 #define GST_CAT_DEFAULT gst_gl_upload_debug
@@ -741,7 +747,9 @@ struct DmabufUpload
   GstEGLImage *eglimage[GST_VIDEO_MAX_PLANES];
   GstEGLImageCache *eglimage_cache;
   GstGLFormat formats[GST_VIDEO_MAX_PLANES];
+  GstBuffer *inbuf;
   GstBuffer *outbuf;
+  GstBufferPool *pool;
   GstGLVideoAllocationParams *params;
   guint n_mem;
 
@@ -1398,6 +1406,7 @@ _dma_buf_upload_transform_caps (gpointer impl, GstGLContext * context,
       return NULL;
     }
 
+    gst_caps_set_simple (ret, "format", G_TYPE_STRING, "RGBA", NULL);
     tmp = _caps_intersect_texture_target (ret, 1 << GST_GL_TEXTURE_TARGET_2D);
     gst_caps_unref (ret);
     ret = tmp;
@@ -1441,6 +1450,74 @@ _dma_buf_upload_transform_caps (gpointer impl, GstGLContext * context,
 }
 
 static gboolean
+_dma_buf_upload_setup_buffer_pool (GstBufferPool ** pool,
+    GstAllocator * allocator, GstCaps * caps, GstVideoInfo * info)
+{
+  GstAllocationParams params;
+  GstStructure *config;
+  gsize size;
+  guint width, height;
+  GstVideoAlignment alignment;
+
+  g_return_val_if_fail (caps != NULL && info != NULL, FALSE);
+
+  width = GST_VIDEO_INFO_WIDTH (info);
+  height = GST_VIDEO_INFO_HEIGHT (info);
+
+  gst_allocation_params_init (&params);
+
+  /* if user not provide an allocator, then use default ion allocator */
+  if (!allocator) {
+#if GST_GL_HAVE_IONDMA
+    allocator = gst_ion_allocator_obtain ();
+#endif
+  }
+
+  if (!allocator) {
+    GST_WARNING ("Cannot get available allocator");
+    return FALSE;
+  }
+  GST_DEBUG ("got allocator(%p).", allocator);
+
+  if (*pool)
+    gst_object_unref (*pool);
+
+  *pool = gst_video_buffer_pool_new ();
+  if (!*pool) {
+    GST_WARNING ("New video buffer pool failed.");
+    return FALSE;
+  }
+  GST_DEBUG ("create buffer pool(%p).", *pool);
+
+  config = gst_buffer_pool_get_config (*pool);
+
+  /* configure alignment for eglimage to import this dma-fd buffer */
+  memset (&alignment, 0, sizeof (GstVideoAlignment));
+  alignment.padding_right = GST_ROUND_UP_N (width, DEFAULT_ALIGN) - width;
+  alignment.padding_bottom = GST_ROUND_UP_N (height, DEFAULT_ALIGN) - height;
+  GST_DEBUG
+      ("align buffer pool, w(%d) h(%d), padding_right (%d), padding_bottom (%d)",
+      width, height, alignment.padding_right, alignment.padding_bottom);
+
+  /* the normal size of a frame */
+  size = info->size;
+  gst_buffer_pool_config_set_params (config, caps, size, 0, 30);
+  gst_buffer_pool_config_add_option (config, GST_BUFFER_POOL_OPTION_VIDEO_META);
+  gst_buffer_pool_config_add_option (config,
+      GST_BUFFER_POOL_OPTION_VIDEO_ALIGNMENT);
+  gst_buffer_pool_config_set_video_alignment (config, &alignment);
+  gst_buffer_pool_config_set_allocator (config, allocator, &params);
+
+  if (!gst_buffer_pool_set_config (*pool, config)) {
+    GST_WARNING ("buffer pool config failed.");
+    gst_object_unref (*pool);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static gboolean
 _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
     GstCaps * out_caps)
 {
@@ -1461,7 +1538,7 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
   n_mem = gst_buffer_n_memory (buffer);
   meta = gst_buffer_get_video_meta (buffer);
-  crop = gst_buffer_get_video_crop_meta(buffer);
+  crop = gst_buffer_get_video_crop_meta (buffer);
 
   if (!dmabuf->upload->context->gl_vtable->EGLImageTargetTexture2D)
     return FALSE;
@@ -1516,8 +1593,53 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
   /* This will eliminate most non-dmabuf out there */
   if (!gst_is_dmabuf_memory (gst_buffer_peek_memory (buffer, 0))) {
-    GST_DEBUG_OBJECT (dmabuf->upload, "input not dmabuf");
-    return FALSE;
+    GstVideoFrame frame1, frame2;
+
+    gst_video_frame_map (&frame1, in_info, buffer, GST_MAP_READ);
+
+    if (!dmabuf->pool) {
+      gboolean ret;
+      GstCaps *new_caps = gst_video_info_to_caps (&frame1.info);
+      gst_video_info_from_caps (in_info, new_caps);
+
+      ret =
+          _dma_buf_upload_setup_buffer_pool (&dmabuf->pool, NULL, new_caps,
+          in_info);
+      if (!ret) {
+        gst_video_frame_unmap (&frame1);
+        gst_caps_unref (new_caps);
+        GST_WARNING_OBJECT (dmabuf->upload, "no available buffer pool");
+        return FALSE;
+      }
+    }
+
+    if (!gst_buffer_pool_is_active (dmabuf->pool)
+        && gst_buffer_pool_set_active (dmabuf->pool, TRUE) != TRUE) {
+      gst_video_frame_unmap (&frame1);
+      GST_WARNING_OBJECT (dmabuf->upload, "buffer pool is not ok");
+      return FALSE;
+    }
+
+    if (dmabuf->inbuf)
+      gst_buffer_unref (dmabuf->inbuf);
+    dmabuf->inbuf = NULL;
+
+    gst_buffer_pool_acquire_buffer (dmabuf->pool, &dmabuf->inbuf, NULL);
+    if (!dmabuf->inbuf) {
+      gst_video_frame_unmap (&frame1);
+      GST_WARNING_OBJECT (dmabuf->upload, "acquire_buffer failed");
+      return FALSE;
+    }
+
+    GST_DEBUG_OBJECT (dmabuf->upload, "copy plane resolution (%d)x(%d)\n",
+        in_info->width, in_info->height);
+    gst_video_frame_map (&frame2, in_info, dmabuf->inbuf, GST_MAP_WRITE);
+    gst_video_frame_copy (&frame2, &frame1);
+    gst_video_frame_unmap (&frame1);
+    gst_video_frame_unmap (&frame2);
+
+    buffer = dmabuf->inbuf;
+    meta = gst_buffer_get_video_meta (buffer);
   }
 
   n_planes = GST_VIDEO_INFO_N_PLANES (in_info);
@@ -1533,14 +1655,14 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
       in_info->stride[i] = meta->stride[i];
     }
   }
-  
+
   if (crop) {
     in_info->width = MIN (crop->width, in_info->width);
     in_info->height = MIN (crop->height, in_info->height);
 
     GST_DEBUG_OBJECT (dmabuf->upload, "got crop meta (%d)x(%d)",
         in_info->width, in_info->height);
-    gst_buffer_remove_meta (buffer, (GstMeta *)crop);
+    gst_buffer_remove_meta (buffer, (GstMeta *) crop);
   }
 
   /* We cannot have multiple dmabuf per plane */
@@ -1573,6 +1695,7 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
   if (dmabuf->params)
     gst_gl_allocation_params_free ((GstGLAllocationParams *) dmabuf->params);
+
   if (!(dmabuf->params = gst_gl_video_allocation_params_new_wrapped_gl_handle
           (dmabuf->upload->context, NULL, out_info, -1, NULL, dmabuf->target,
               0, NULL, NULL, NULL)))
@@ -1662,6 +1785,60 @@ _dma_buf_upload_propose_allocation (gpointer impl, GstQuery * decide_query,
     GstQuery * query)
 {
   /* nothing to do for now. */
+  struct DmabufUpload *upload = impl;
+  GstBufferPool *pool = NULL;
+  GstAllocator *allocator = NULL;
+  GstCaps *caps;
+  GstCapsFeatures *caps_features;
+  GstVideoInfo info;
+
+  gst_query_parse_allocation (query, &caps, NULL);
+
+  if (!gst_video_info_from_caps (&info, caps))
+    goto invalid_caps;
+
+  caps_features = gst_caps_get_features (caps, 0);
+  if (gst_caps_features_contains (caps_features, "memory:GLMemory")) {
+    GST_DEBUG ("upstream has memory:GLMemory feature");
+    return;
+  }
+#if GST_GL_HAVE_IONDMA
+  allocator = gst_ion_allocator_obtain ();
+#endif
+  if (!allocator) {
+    GST_WARNING ("New ion allocator failed.");
+    return;
+  }
+  GST_DEBUG ("create ion allocator(%p).", allocator);
+
+  if (gst_query_get_n_allocation_params (query) == 0) {
+    gst_query_add_allocation_param (query, allocator, NULL);
+  } else {
+    gst_query_set_nth_allocation_param (query, 0, allocator, NULL);
+  }
+
+  if (!_dma_buf_upload_setup_buffer_pool (&pool, allocator, caps, &info))
+    goto setup_failed;
+
+  if (gst_query_get_n_allocation_pools (query) == 0)
+    gst_query_add_allocation_pool (query, pool, info.size, 1, 30);
+  else
+    gst_query_set_nth_allocation_pool (query, 0, pool, info.size, 1, 30);
+
+  if (pool)
+    gst_object_unref (pool);
+
+  return;
+invalid_caps:
+  {
+    GST_WARNING_OBJECT (upload->upload, "invalid caps specified");
+    return;
+  }
+setup_failed:
+  {
+    GST_WARNING_OBJECT (upload->upload, "failed to setup buffer pool");
+    return;
+  }
 }
 
 static void
@@ -1669,11 +1846,17 @@ _dma_buf_upload_perform_gl_thread (GstGLContext * context,
     struct DmabufUpload *dmabuf)
 {
   GstGLMemoryAllocator *allocator;
+  guint n_mem, i;
 
   allocator =
       GST_GL_MEMORY_ALLOCATOR (gst_allocator_find
       (GST_GL_MEMORY_EGL_ALLOCATOR_NAME));
 
+  n_mem = GST_VIDEO_INFO_N_PLANES (dmabuf->params->v_info);
+  for (i = 0; i < n_mem; i++) {
+    if (!dmabuf->eglimage[i])
+      return;
+  }
   /* FIXME: buffer pool */
   dmabuf->outbuf = gst_buffer_new ();
   gst_gl_memory_setup_buffer (allocator, dmabuf->outbuf, dmabuf->params,
@@ -1717,6 +1900,12 @@ _dma_buf_upload_free (gpointer impl)
   if (dmabuf->params)
     gst_gl_allocation_params_free ((GstGLAllocationParams *) dmabuf->params);
   gst_egl_image_cache_unref (dmabuf->eglimage_cache);
+
+  if (dmabuf->inbuf)
+    gst_buffer_unref (dmabuf->inbuf);
+
+  if (dmabuf->pool)
+    gst_object_unref (dmabuf->pool);
 
   g_free (impl);
 }
@@ -2042,11 +2231,11 @@ _upload_meta_upload_propose_allocation (gpointer impl, GstQuery * decide_query,
   gpointer handle;
 
   gl_apis =
-      gst_gl_api_to_string (gst_gl_context_get_gl_api (upload->upload->
-          context));
-  platform =
-      gst_gl_platform_to_string (gst_gl_context_get_gl_platform (upload->
+      gst_gl_api_to_string (gst_gl_context_get_gl_api (upload->
           upload->context));
+  platform =
+      gst_gl_platform_to_string (gst_gl_context_get_gl_platform
+      (upload->upload->context));
   handle = (gpointer) gst_gl_context_get_gl_context (upload->upload->context);
 
   gl_context =
@@ -2438,8 +2627,8 @@ _directviv_upload_new (GstGLUpload * upload)
 }
 
 static gboolean
-_directviv_upload_setup_buffer_pool (GstBufferPool **pool, GstAllocator *allocator,
-    GstCaps *caps, GstVideoInfo *info)
+_directviv_upload_setup_buffer_pool (GstBufferPool ** pool,
+    GstAllocator * allocator, GstCaps * caps, GstVideoInfo * info)
 {
   GstAllocationParams params;
   GstStructure *config;
@@ -2454,7 +2643,7 @@ _directviv_upload_setup_buffer_pool (GstBufferPool **pool, GstAllocator *allocat
 
   gst_allocation_params_init (&params);
 
-  /* if user not provide an allocator, then use default physical allocator*/
+  /* if user not provide an allocator, then use default physical allocator */
   if (!allocator) {
 #if GST_GL_HAVE_PHYMEM
     allocator = gst_phy_mem_allocator_obtain ();
@@ -2468,7 +2657,7 @@ _directviv_upload_setup_buffer_pool (GstBufferPool **pool, GstAllocator *allocat
   GST_DEBUG ("got allocator(%p).", allocator);
 
   if (*pool)
-    gst_object_unref(*pool);
+    gst_object_unref (*pool);
 
   *pool = gst_video_buffer_pool_new ();
   if (!*pool) {
@@ -2481,15 +2670,17 @@ _directviv_upload_setup_buffer_pool (GstBufferPool **pool, GstAllocator *allocat
 
   /* configure alignment for eglimage to import this dma-fd buffer */
   memset (&alignment, 0, sizeof (GstVideoAlignment));
-  alignment.padding_right = GST_ROUND_UP_N(width, DEFAULT_ALIGN) - width;
-  GST_DEBUG ("align buffer pool, w(%d) h(%d), padding_right (%d), padding_bottom (%d)",
+  alignment.padding_right = GST_ROUND_UP_N (width, DEFAULT_ALIGN) - width;
+  GST_DEBUG
+      ("align buffer pool, w(%d) h(%d), padding_right (%d), padding_bottom (%d)",
       width, height, alignment.padding_right, alignment.padding_bottom);
 
   /* the normal size of a frame */
   size = info->size;
   gst_buffer_pool_config_set_params (config, caps, size, 0, 30);
   gst_buffer_pool_config_add_option (config, GST_BUFFER_POOL_OPTION_VIDEO_META);
-  gst_buffer_pool_config_add_option (config, GST_BUFFER_POOL_OPTION_VIDEO_ALIGNMENT);
+  gst_buffer_pool_config_add_option (config,
+      GST_BUFFER_POOL_OPTION_VIDEO_ALIGNMENT);
   gst_buffer_pool_config_set_video_alignment (config, &alignment);
   gst_buffer_pool_config_set_allocator (config, allocator, &params);
 
@@ -2544,7 +2735,7 @@ _directviv_upload_transform_caps (gpointer impl, GstGLContext * context,
     } else {
       GstCaps *tmp;
       tmp = gst_caps_from_string (GST_VIDEO_CAPS_MAKE_WITH_FEATURES
-        (GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY, GST_GL_DIRECTVIV_FORMAT));
+          (GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY, GST_GL_DIRECTVIV_FORMAT));
       ret =
           _set_caps_features_with_passthrough (tmp,
           GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY, passthrough);
@@ -2636,7 +2827,8 @@ _directviv_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
 #if GST_GL_HAVE_PHYMEM
   GstVideoInfo *in_info = &directviv->upload->priv->in_info;
-  GstVideoFormat fmt = GST_VIDEO_INFO_FORMAT (&directviv->upload->priv->out_info);
+  GstVideoFormat fmt =
+      GST_VIDEO_INFO_FORMAT (&directviv->upload->priv->out_info);
   if (fmt != GST_VIDEO_FORMAT_RGBA)
     return FALSE;
 
@@ -2646,17 +2838,21 @@ _directviv_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
     GstVideoInfo info;
 
     gst_video_frame_map (&frame1, in_info, buffer, GST_MAP_READ);
-    new_caps = gst_video_info_to_caps(&frame1.info);
-    gst_video_info_from_caps(&info, new_caps);
+    new_caps = gst_video_info_to_caps (&frame1.info);
+    gst_video_info_from_caps (&info, new_caps);
 
-    if (!directviv->pool || !_directviv_upload_buffer_pool_is_ok (directviv->pool,new_caps,info.size)) {
+    if (!directviv->pool
+        || !_directviv_upload_buffer_pool_is_ok (directviv->pool, new_caps,
+            info.size)) {
       gboolean ret;
       if (directviv->pool) {
-        gst_object_unref(directviv->pool);
+        gst_object_unref (directviv->pool);
         directviv->pool = NULL;
       }
 
-      ret = _directviv_upload_setup_buffer_pool (&directviv->pool, NULL, new_caps, in_info);
+      ret =
+          _directviv_upload_setup_buffer_pool (&directviv->pool, NULL, new_caps,
+          in_info);
       if (!ret) {
         gst_video_frame_unmap (&frame1);
         gst_caps_unref (new_caps);
@@ -2673,7 +2869,7 @@ _directviv_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
     }
 
     if (directviv->inbuf)
-      gst_buffer_unref(directviv->inbuf);
+      gst_buffer_unref (directviv->inbuf);
     directviv->inbuf = NULL;
 
     gst_buffer_pool_acquire_buffer (directviv->pool, &directviv->inbuf, NULL);
@@ -2683,7 +2879,8 @@ _directviv_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
       return FALSE;
     }
 
-    GST_DEBUG_OBJECT (directviv->upload, "copy plane resolution (%d)x(%d)\n", in_info->width, in_info->height);
+    GST_DEBUG_OBJECT (directviv->upload, "copy plane resolution (%d)x(%d)\n",
+        in_info->width, in_info->height);
     gst_video_frame_map (&frame2, in_info, directviv->inbuf, GST_MAP_WRITE);
     gst_video_frame_copy (&frame2, &frame1);
     gst_video_frame_unmap (&frame1);
