@@ -32,6 +32,10 @@
 #include "gstglelements.h"
 #include "gstgldownloadelement.h"
 
+#if GST_GL_HAVE_PHYMEM
+#include <gst/gl/gstglphymemory.h>
+#endif
+
 GST_DEBUG_CATEGORY_STATIC (gst_gl_download_element_debug);
 #define GST_CAT_DEFAULT gst_gl_download_element_debug
 
@@ -775,7 +779,8 @@ gst_gl_buffer_pool_nvmm_new (GstGLContext * context)
 G_DEFINE_TYPE_WITH_CODE (GstGLDownloadElement, gst_gl_download_element,
     GST_TYPE_GL_BASE_FILTER,
     GST_DEBUG_CATEGORY_INIT (gst_gl_download_element_debug, "gldownloadelement",
-        0, "download element"););
+        0, "download element");
+    );
 GST_ELEMENT_REGISTER_DEFINE_WITH_CODE (gldownload, "gldownload",
     GST_RANK_NONE, GST_TYPE_GL_DOWNLOAD_ELEMENT, gl_element_init (plugin));
 
@@ -1232,6 +1237,25 @@ gst_gl_download_element_prepare_output_buffer (GstBaseTransform * bt,
   GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
   GstGLSyncMeta *in_sync_meta;
   gint i, n;
+  GstGLMemory *glmem;
+
+#if GST_GL_HAVE_PHYMEM
+  glmem = gst_buffer_peek_memory (inbuf, 0);
+  if (gst_is_gl_physical_memory (glmem)) {
+    GstCaps *src_caps;
+    GstVideoInfo info;
+    GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
+
+    src_caps = gst_pad_get_current_caps (bt->srcpad);
+
+    gst_video_info_from_caps (&info, src_caps);
+    *outbuf = gst_gl_phymem_buffer_to_gstbuffer (context, &info, inbuf);
+
+    GST_DEBUG_OBJECT (dl, "gl download with direct viv.");
+
+    return GST_FLOW_OK;
+  }
+#endif /* GST_GL_HAVE_PHYMEM */
 
   *outbuf = inbuf;
 
@@ -1363,6 +1387,84 @@ gst_gl_download_element_transform_meta (GstBaseTransform * bt,
 }
 
 static gboolean
+gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
+    GstQuery * decide_query, GstQuery * query)
+{
+  GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
+  GstGLDownloadElement *download = GST_GL_DOWNLOAD_ELEMENT (bt);
+  GstAllocationParams params;
+  GstAllocator *allocator = NULL;
+  GstBufferPool *pool = NULL;
+  guint n_pools, i;
+  GstVideoInfo info;
+  GstCaps *caps;
+  GstStructure *config;
+  gsize size;
+
+  gst_query_parse_allocation (query, &caps, NULL);
+  if (!gst_video_info_from_caps (&info, caps)) {
+    GST_WARNING_OBJECT (bt, "invalid caps specified");
+    return FALSE;
+  }
+
+  GST_DEBUG_OBJECT (bt, "video format is %s",
+      gst_video_format_to_string (GST_VIDEO_INFO_FORMAT (&info)));
+
+  gst_allocation_params_init (&params);
+
+#if GST_GL_HAVE_PHYMEM
+  if (gst_is_gl_physical_memory_supported_fmt (&info)) {
+    allocator = gst_phy_mem_allocator_obtain ();
+    GST_DEBUG_OBJECT (bt, "obtain physical memory allocator %p.", allocator);
+  }
+#endif /* GST_GL_HAVE_PHYMEM */
+
+  if (!allocator)
+    allocator = gst_allocator_find (GST_GL_MEMORY_ALLOCATOR_NAME);
+
+  if (!allocator) {
+    GST_ERROR_OBJECT (bt, "Can't obtain gl memory allocator.");
+    return FALSE;
+  }
+
+  gst_query_add_allocation_param (query, allocator, &params);
+  gst_object_unref (allocator);
+
+  n_pools = gst_query_get_n_allocation_pools (query);
+  for (i = 0; i < n_pools; i++) {
+    gst_query_parse_nth_allocation_pool (query, i, &pool, NULL, NULL, NULL);
+    gst_object_unref (pool);
+    pool = NULL;
+  }
+
+  //new buffer pool
+  pool = gst_gl_buffer_pool_new (context);
+  config = gst_buffer_pool_get_config (pool);
+
+  /* the normal size of a frame */
+  size = info.size;
+  gst_buffer_pool_config_set_params (config, caps, size, 0, 0);
+  gst_buffer_pool_config_set_gl_min_free_queue_size (config, 1);
+  gst_buffer_pool_config_add_option (config,
+      GST_BUFFER_POOL_OPTION_GL_SYNC_META);
+
+  if (!gst_buffer_pool_set_config (pool, config)) {
+    gst_object_unref (pool);
+    GST_WARNING_OBJECT (bt, "failed setting config");
+    return FALSE;
+  }
+
+  GST_DEBUG_OBJECT (download, "create pool %p", pool);
+
+  //propose 3 buffers for better performance
+  gst_query_add_allocation_pool (query, pool, size, 3, 0);
+
+  gst_object_unref (pool);
+
+  return TRUE;
+}
+
+static gboolean
 gst_gl_download_element_decide_allocation (GstBaseTransform * trans,
     GstQuery * query)
 {
@@ -1401,86 +1503,6 @@ gst_gl_download_element_src_event (GstBaseTransform * bt, GstEvent * event)
 
   return GST_BASE_TRANSFORM_CLASS (parent_class)->src_event (bt, event);
 }
-
-static gboolean
-gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
-    GstQuery * decide_query, GstQuery * query)
-{
-  GstBufferPool *pool = NULL;
-  GstCaps *caps;
-  GstGLContext *context;
-  GstStructure *config;
-  GstVideoInfo info;
-  gsize size;
-
-  if (!GST_BASE_TRANSFORM_CLASS (parent_class)->propose_allocation (bt,
-          decide_query, query))
-    return FALSE;
-
-  gst_query_parse_allocation (query, &caps, NULL);
-  if (caps == NULL)
-    goto invalid_caps;
-
-  context = GST_GL_BASE_FILTER (bt)->context;
-  if (!context) {
-    GST_ERROR_OBJECT (context, "got no GLContext");
-    return FALSE;
-  }
-
-  if (!gst_video_info_from_caps (&info, caps))
-    goto invalid_caps;
-
-#if GST_GL_HAVE_PLATFORM_EGL && defined(HAVE_NVMM)
-  if (!pool && decide_query) {
-    GstCaps *decide_caps;
-
-    gst_query_parse_allocation (decide_query, &decide_caps, NULL);
-    if (decide_caps && gst_caps_get_size (decide_caps) > 0) {
-      GstCapsFeatures *features = gst_caps_get_features (decide_caps, 0);
-
-      if (gst_caps_features_contains (features, GST_CAPS_FEATURE_MEMORY_NVMM)) {
-        pool = gst_gl_buffer_pool_nvmm_new (context);
-        GST_INFO_OBJECT (bt, "have NVMM downstream, proposing NVMM "
-            "pool %" GST_PTR_FORMAT, pool);
-      }
-    }
-  }
-#endif
-  if (!pool) {
-    pool = gst_gl_buffer_pool_new (context);
-  }
-  config = gst_buffer_pool_get_config (pool);
-
-  /* the normal size of a frame */
-  size = info.size;
-  gst_buffer_pool_config_set_params (config, caps, size, 0, 0);
-  gst_buffer_pool_config_set_gl_min_free_queue_size (config, 1);
-
-  if (!gst_buffer_pool_set_config (pool, config)) {
-    gst_object_unref (pool);
-    goto config_failed;
-  }
-
-  if (context->gl_vtable->FenceSync)
-    gst_query_add_allocation_meta (query, GST_GL_SYNC_META_API_TYPE, NULL);
-
-  gst_query_add_allocation_pool (query, pool, size, 1, 0);
-
-  gst_object_unref (pool);
-  return TRUE;
-
-invalid_caps:
-  {
-    GST_ERROR_OBJECT (bt, "Invalid Caps specified");
-    return FALSE;
-  }
-config_failed:
-  {
-    GST_ERROR_OBJECT (bt, "failed setting config");
-    return FALSE;
-  }
-}
-
 
 static void
 gst_gl_download_element_finalize (GObject * object)
