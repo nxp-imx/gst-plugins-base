@@ -34,6 +34,10 @@
 #include "gstgldownloadelement.h"
 #include "gstglutils.h"
 
+#if GST_GL_HAVE_PHYMEM
+#include <gst/gl/gstglphymemory.h>
+#endif
+
 GST_DEBUG_CATEGORY_STATIC (gst_gl_download_element_debug);
 #define GST_CAT_DEFAULT gst_gl_download_element_debug
 
@@ -777,7 +781,8 @@ gst_gl_buffer_pool_nvmm_new (GstGLContext * context)
 G_DEFINE_TYPE_WITH_CODE (GstGLDownloadElement, gst_gl_download_element,
     GST_TYPE_GL_BASE_FILTER,
     GST_DEBUG_CATEGORY_INIT (gst_gl_download_element_debug, "gldownloadelement",
-        0, "download element"););
+        0, "download element");
+    );
 GST_ELEMENT_REGISTER_DEFINE_WITH_CODE (gldownload, "gldownload",
     GST_RANK_NONE, GST_TYPE_GL_DOWNLOAD_ELEMENT, gl_element_init (plugin));
 
@@ -1322,6 +1327,25 @@ gst_gl_download_element_prepare_output_buffer (GstBaseTransform * bt,
   GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
   GstGLSyncMeta *in_sync_meta;
   gint i, n;
+  GstGLMemory *glmem;
+
+#if GST_GL_HAVE_PHYMEM
+  glmem = gst_buffer_peek_memory (inbuf, 0);
+  if (gst_is_gl_physical_memory (glmem)) {
+    GstCaps *src_caps;
+    GstVideoInfo info;
+    GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
+
+    src_caps = gst_pad_get_current_caps (bt->srcpad);
+
+    gst_video_info_from_caps (&info, src_caps);
+    *outbuf = gst_gl_phymem_buffer_to_gstbuffer (context, &info, inbuf);
+
+    GST_DEBUG_OBJECT (dl, "gl download with direct viv.");
+
+    return GST_FLOW_OK;
+  }
+#endif /* GST_GL_HAVE_PHYMEM */
 
   *outbuf = inbuf;
 
@@ -1552,6 +1576,7 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
     GstQuery * decide_query, GstQuery * query)
 {
   GstBufferPool *pool = NULL;
+  GstAllocator *allocator = NULL;
   GstCaps *caps;
   GstGLContext *context;
   GstStructure *config;
@@ -1602,6 +1627,16 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   }
 #endif
 
+#if GST_GL_HAVE_PHYMEM
+  if (!pool && gst_is_gl_physical_memory_supported_fmt (&info)) {
+    allocator = gst_phy_mem_allocator_obtain ();
+    GST_DEBUG_OBJECT (bt, "obtain physical memory allocator %p.", allocator);
+  }
+#endif
+
+  if (allocator)
+    gst_query_add_allocation_param (query, allocator, NULL);
+
   if (!pool) {
     pool = gst_gl_buffer_pool_new (context);
   }
@@ -1611,6 +1646,13 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   size = info.size;
   gst_buffer_pool_config_set_params (config, caps, size, 0, 0);
   gst_buffer_pool_config_set_gl_min_free_queue_size (config, 1);
+  gst_buffer_pool_config_add_option (config,
+    GST_BUFFER_POOL_OPTION_GL_SYNC_META);
+
+  if (allocator) {
+    gst_buffer_pool_config_set_allocator (config, allocator, NULL);
+    gst_object_unref (allocator);
+  }
 
   if (!gst_buffer_pool_set_config (pool, config)) {
     gst_object_unref (pool);
