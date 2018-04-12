@@ -341,7 +341,7 @@ gst_gl_overlay_compositor_element_callback (GstGLFilter * filter,
 
   GST_LOG_OBJECT (self, "drawing overlays");
 
-  gst_gl_overlay_compositor_draw_overlays (self->overlay_compositor);
+  gst_gl_overlay_compositor_draw_overlays (self->overlay_compositor, NULL);
 
   return TRUE;
 }
