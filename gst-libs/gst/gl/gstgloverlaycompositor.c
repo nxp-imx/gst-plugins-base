@@ -554,7 +554,10 @@ gst_gl_overlay_compositor_init_gl (GstGLContext * context,
 
   if (!(compositor->shader =
           gst_gl_shader_new_link_with_stages (context, &error,
-              gst_glsl_stage_new_default_vertex (context),
+              gst_glsl_stage_new_with_string (context,
+                  GL_VERTEX_SHADER, GST_GLSL_VERSION_NONE,
+                  GST_GLSL_PROFILE_ES | GST_GLSL_PROFILE_COMPATIBILITY,
+                  gst_gl_shader_string_vertex_mat4_vertex_transform),
               gst_glsl_stage_new_with_strings (context, GL_FRAGMENT_SHADER,
                   GST_GLSL_VERSION_NONE,
                   GST_GLSL_PROFILE_ES | GST_GLSL_PROFILE_COMPATIBILITY, 2,
@@ -711,7 +714,7 @@ gst_gl_overlay_compositor_upload_overlays (GstGLOverlayCompositor * compositor,
 }
 
 void
-gst_gl_overlay_compositor_draw_overlays (GstGLOverlayCompositor * compositor)
+gst_gl_overlay_compositor_draw_overlays (GstGLOverlayCompositor * compositor, gfloat *matrix)
 {
   const GstGLFuncs *gl = compositor->context->gl_vtable;
   if (compositor->overlays != NULL) {
@@ -722,6 +725,10 @@ gst_gl_overlay_compositor_draw_overlays (GstGLOverlayCompositor * compositor)
     gst_gl_shader_use (compositor->shader);
     gl->ActiveTexture (GL_TEXTURE0);
     gst_gl_shader_set_uniform_1i (compositor->shader, "tex", 0);
+
+    if (matrix)
+      gst_gl_shader_set_uniform_matrix_4fv (compositor->shader,
+          "u_transformation", 1, FALSE, matrix);
 
     for (l = compositor->overlays; l != NULL; l = l->next) {
       GstGLCompositionOverlay *overlay = (GstGLCompositionOverlay *) l->data;
