@@ -83,7 +83,7 @@ void gst_gl_overlay_compositor_upload_overlays (GstGLOverlayCompositor * composi
         GstBuffer * buf);
 
 GST_GL_API
-void gst_gl_overlay_compositor_draw_overlays (GstGLOverlayCompositor * compositor);
+void gst_gl_overlay_compositor_draw_overlays (GstGLOverlayCompositor * compositor, gfloat * matrix);
 
 GST_GL_API
 GstCaps * gst_gl_overlay_compositor_add_caps(GstCaps * caps);
