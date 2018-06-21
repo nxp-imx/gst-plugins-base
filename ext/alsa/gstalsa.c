@@ -666,12 +666,14 @@ gst_alsa_open_iec958_pcm (GstObject * obj, gchar * device)
    * SPDIF_CON: Non-audio flag set:
    *    spdif:{AES0 0x2 AES1 0x82 AES2 0x0 AES3 0x2}
    */
-  sprintf (devstr,
+/*  sprintf (devstr,
       "%s:{AES0 0x%02x AES1 0x%02x AES2 0x%02x AES3 0x%02x}",
       device,
       IEC958_AES0_CON_EMPHASIS_NONE | IEC958_AES0_NONAUDIO,
       IEC958_AES1_CON_ORIGINAL | IEC958_AES1_CON_PCM_CODER,
-      0, IEC958_AES3_CON_FS_48000);
+      0, IEC958_AES3_CON_FS_48000);*/
+
+  sprintf (devstr, "%s", device);
 
   GST_DEBUG_OBJECT (obj, "Generated device string \"%s\"", devstr);
   iec958_pcm_name = devstr;
