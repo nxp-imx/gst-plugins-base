@@ -81,6 +81,8 @@ struct _GstAlsaSink {
 
   GMutex alsa_lock;
   GMutex delay_lock;
+
+  gboolean passthrough;
 };
 
 struct _GstAlsaSinkClass {
