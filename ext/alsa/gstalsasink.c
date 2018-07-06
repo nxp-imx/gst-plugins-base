@@ -71,6 +71,7 @@ enum
   PROP_DEVICE,
   PROP_DEVICE_NAME,
   PROP_CARD_NAME,
+  PROP_PASSTHROUGH,
   PROP_LAST
 };
 
@@ -201,6 +202,11 @@ gst_alsasink_class_init (GstAlsaSinkClass * klass)
           "Human-readable name of the sound card", DEFAULT_CARD_NAME,
           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS |
           GST_PARAM_DOC_SHOW_DEFAULT));
+
+  g_object_class_install_property (gobject_class, PROP_PASSTHROUGH,
+      g_param_spec_boolean ("pass-through", "Pass through",
+          "enable pass through mode",
+          FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 static void
@@ -219,6 +225,9 @@ gst_alsasink_set_property (GObject * object, guint prop_id,
       if (sink->device == NULL) {
         sink->device = g_strdup (DEFAULT_DEVICE);
       }
+      break;
+    case PROP_PASSTHROUGH:
+      sink->passthrough = g_value_get_boolean (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -248,6 +257,9 @@ gst_alsasink_get_property (GObject * object, guint prop_id,
           gst_alsa_find_card_name (GST_OBJECT_CAST (sink),
               sink->device, SND_PCM_STREAM_PLAYBACK));
       break;
+    case PROP_PASSTHROUGH:
+      g_value_set_boolean (value, sink->passthrough);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -265,6 +277,7 @@ gst_alsasink_init (GstAlsaSink * alsasink)
   alsasink->is_paused = FALSE;
   alsasink->after_paused = FALSE;
   alsasink->hw_support_pause = FALSE;
+  alsasink->passthrough = FALSE;
   g_mutex_init (&alsasink->alsa_lock);
   g_mutex_init (&alsasink->delay_lock);
 
@@ -333,10 +346,11 @@ gst_alsasink_getcaps (GstBaseSink * bsink, GstCaps * filter)
    * only for now but we could add SPDIF capture later)
    */
 
-  if (gst_alsa_iec958_formats_supported(GST_OBJECT (sink), sink->device,
-    &sink->handle) == TRUE) {
+  if (gst_alsa_iec958_formats_supported (GST_OBJECT (sink), sink->device,
+          &sink->handle) == TRUE) {
     GST_LOG_OBJECT (sink, "Add pass-through capabilities");
-    gst_caps_append (caps, gst_caps_from_string (PASSTHROUGH_CAPS));
+    if (TRUE == sink->passthrough)
+      gst_caps_append (caps, gst_caps_from_string (PASSTHROUGH_CAPS));
   }
 
   if (caps) {
