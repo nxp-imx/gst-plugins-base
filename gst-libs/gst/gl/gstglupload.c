@@ -3849,7 +3849,7 @@ gst_gl_upload_transform_caps (GstGLUpload * upload, GstGLContext * context,
   }
 
   if (filter) {
-    result = gst_caps_intersect_full (filter, tmp, GST_CAPS_INTERSECT_FIRST);
+    result = gst_caps_intersect_full (tmp, filter, GST_CAPS_INTERSECT_FIRST);
     gst_caps_unref (tmp);
   } else {
     result = tmp;
