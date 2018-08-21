@@ -2683,8 +2683,25 @@ _directviv_upload_transform_caps (gpointer impl, GstGLContext * context,
     gst_caps_unref (ret);
     ret = tmp;
   } else {
-    ret = gst_caps_from_string (GST_VIDEO_CAPS_MAKE_WITH_FEATURES
+    GstCaps *caps_copy, *caps_intersect;
+    caps_copy = gst_caps_copy (caps);
+    gst_caps_set_simple (caps_copy, "format", G_TYPE_STRING, "RGBA", NULL);
+    caps_intersect = gst_caps_intersect (caps_copy, caps);
+    if (gst_caps_is_empty (caps_intersect)) {
+      ret =
+          _set_caps_features_with_passthrough (caps,
+          GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY, passthrough);
+    } else {
+      GstCaps *tmp;
+      tmp = gst_caps_from_string (GST_VIDEO_CAPS_MAKE_WITH_FEATURES
         (GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY, GST_GL_DIRECTVIV_FORMAT));
+      ret =
+          _set_caps_features_with_passthrough (tmp,
+          GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY, passthrough);
+      gst_caps_unref (tmp);
+    }
+    gst_caps_unref (caps_copy);
+    gst_caps_unref (caps_intersect);
   }
 
   gst_caps_features_free (passthrough);
