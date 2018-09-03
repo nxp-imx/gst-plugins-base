@@ -489,6 +489,8 @@ set_hwparams (GstAlsaSink * alsa)
       no_channels);
   /* set the stream rate */
   rrate = alsa->rate;
+  if ((TRUE== alsa->passthrough) && alsa->iec958 && (alsa->type == GST_AUDIO_RING_BUFFER_FORMAT_TYPE_EAC3))
+    rrate = 192000;
   CHECK (snd_pcm_hw_params_set_rate_near (alsa->handle, params, &rrate, NULL),
       no_rate);
 #ifndef GST_DISABLE_GST_DEBUG
@@ -903,6 +905,7 @@ alsasink_parse_spec (GstAlsaSink * alsa, GstAudioRingBufferSpec * spec)
   alsa->buffer_time = spec->buffer_time;
   alsa->period_time = spec->latency_time;
   alsa->access = SND_PCM_ACCESS_RW_INTERLEAVED;
+  alsa->type = spec->type;
 
   if ((spec->type == GST_AUDIO_RING_BUFFER_FORMAT_TYPE_RAW ||
           spec->type == GST_AUDIO_RING_BUFFER_FORMAT_TYPE_DSD) &&
@@ -1115,8 +1118,12 @@ gst_alsasink_write (GstAudioSink * asink, gpointer data, guint length)
 
   GST_LOG_OBJECT (asink, "received audio samples buffer of %u bytes", length);
 
-  cptr = length / alsa->bpf;
-
+  if (alsa->iec958 && (TRUE == alsa->passthrough) ) {
+    cptr = length / 4;  // treated as 2ch with S16 in pass-through mode 
+  }
+  else {
+    cptr = length / alsa->bpf;
+  }
   GST_ALSA_SINK_LOCK (asink);
   while (cptr > 0) {
     /* start by doing a blocking wait for free space. Set the timeout
