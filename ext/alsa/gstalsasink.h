@@ -83,6 +83,7 @@ struct _GstAlsaSink {
   GMutex delay_lock;
 
   gboolean passthrough;
+  GstAudioRingBufferFormatType  type;
 };
 
 struct _GstAlsaSinkClass {
