@@ -170,7 +170,7 @@ set_default_colorimetry (GstVideoInfo * info)
       info->colorimetry = default_color[DEFAULT_YUV_HD];
     } else {
       info->chroma_site = GST_VIDEO_CHROMA_SITE_NONE;
-      info->colorimetry = default_color[DEFAULT_YUV_SD];
+      info->colorimetry = default_color[DEFAULT_YUV_HD];
     }
   } else if (GST_VIDEO_FORMAT_INFO_IS_GRAY (finfo)) {
     info->colorimetry = default_color[DEFAULT_GRAY];
