@@ -41,7 +41,7 @@
 
 #define PASSTHROUGH_CAPS \
     "audio/x-ac3, framed = (boolean) true;" \
-    "audio/x-eac3, framed = (boolean) true; " \
+    "audio/x-eac3, framed = (boolean) true, alignment = (string) iec61937; "\
     "audio/x-dts, framed = (boolean) true, " \
       "block-size = (int) { 512, 1024, 2048 }; " \
     "audio/mpeg, mpegversion = (int) 1, " \
