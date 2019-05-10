@@ -209,7 +209,7 @@ gst_audio_iec61937_payload (const guint8 * src, guint src_n, guint8 * dst,
 
     case GST_AUDIO_RING_BUFFER_FORMAT_TYPE_EAC3:
     {
-      if (g_str_equal (caps_get_string_field (spec->caps, "alignment"),
+      if (!g_str_equal (caps_get_string_field (spec->caps, "alignment"),
               "iec61937"))
         return FALSE;
 
