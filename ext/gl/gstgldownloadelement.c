@@ -1428,7 +1428,6 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   }
 
   gst_query_add_allocation_param (query, allocator, &params);
-  gst_object_unref (allocator);
 
   n_pools = gst_query_get_n_allocation_pools (query);
   for (i = 0; i < n_pools; i++) {
@@ -1447,6 +1446,12 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   gst_buffer_pool_config_set_gl_min_free_queue_size (config, 1);
   gst_buffer_pool_config_add_option (config,
       GST_BUFFER_POOL_OPTION_GL_SYNC_META);
+
+  //set allocator to buffer pool
+  if (allocator){
+    gst_buffer_pool_config_set_allocator (config, allocator, &params);
+    gst_object_unref (allocator);
+  }
 
   if (!gst_buffer_pool_set_config (pool, config)) {
     gst_object_unref (pool);
