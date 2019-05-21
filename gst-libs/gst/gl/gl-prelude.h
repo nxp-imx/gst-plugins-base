@@ -22,6 +22,10 @@
 #ifndef __GST_GL_PRELUDE_H__
 #define __GST_GL_PRELUDE_H__
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <gst/gst.h>
 
 #ifdef BUILDING_GST_GL
