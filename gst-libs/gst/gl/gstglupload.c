@@ -1852,7 +1852,10 @@ _dma_buf_upload_perform_gl_thread (GstGLContext * context,
       GST_GL_MEMORY_ALLOCATOR (gst_allocator_find
       (GST_GL_MEMORY_EGL_ALLOCATOR_NAME));
 
-  n_mem = GST_VIDEO_INFO_N_PLANES (dmabuf->params->v_info);
+  if (dmabuf->direct)
+    n_mem = 1;
+  else
+    n_mem = GST_VIDEO_INFO_N_PLANES (dmabuf->params->v_info);
   for (i = 0; i < n_mem; i++) {
     if (!dmabuf->eglimage[i])
       return;
