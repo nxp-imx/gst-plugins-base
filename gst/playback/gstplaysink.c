@@ -3549,7 +3549,7 @@ gst_play_sink_do_reconfigure (GstPlaySink * playsink)
       /* try to reactivate the chain */
       if ((playsink->audio_sink
               && playsink->audio_sink != playsink->audiochain->sink)
-          || (playsink->audio_filter
+          || (playsink->audio_filter && playsink->audiochain->filter
               && playsink->audio_filter != playsink->audiochain->filter)
           || !setup_audio_chain (playsink, raw)) {
         GST_DEBUG_OBJECT (playsink, "removing current audio chain");
