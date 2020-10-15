@@ -991,6 +991,7 @@ if need_platform_egl != 'no' and need_win_viv_fb != 'no'
       'viv-fb/gstglviv-fb.h',
       'viv-fb/gstgldisplay_viv_fb.h',
     ])
+    install_headers(gl_viv_fb_headers, subdir : 'gstreamer-1.0/gst/gl/viv-fb')
   endif
 endif
 
