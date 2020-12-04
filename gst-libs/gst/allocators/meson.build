@@ -10,6 +10,13 @@ gst_allocators_headers = files([
   'gstdmabufmeta.h',
   'gstallocatorphymem.h',
 ])
+
+if cc.has_header('linux/dma-heap.h')
+  gst_allocators_headers += files([
+    'gstdmabufheaps.h',
+  ])
+endif
+
 install_headers(gst_allocators_headers, subdir : 'gstreamer-1.0/gst/allocators/')
 
 gst_allocators_sources = files([
@@ -52,6 +59,12 @@ endif
 if cc.has_function('getpagesize')
   gst_allocators_cargs += [
     '-DHAVE_GETPAGESIZE',
+  ]
+endif
+
+if cc.has_header('linux/dma-heap.h')
+  gst_allocators_sources += [
+    'gstdmabufheaps.c',
   ]
 endif
 
