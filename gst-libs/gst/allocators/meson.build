@@ -17,6 +17,12 @@ if cc.has_header('linux/ion.h')
   ]
 endif
 
+if cc.has_header('linux/dma-heap.h')
+  gst_allocators_headers += [
+    'gstdmabufheaps.h',
+  ]
+endif
+
 install_headers(gst_allocators_headers, subdir : 'gstreamer-1.0/gst/allocators/')
 
 gst_allocators_sources = files([
@@ -50,6 +56,12 @@ endif
 if cc.has_header('linux/ion.h')
   gst_allocators_sources += [
     'gstionmemory.c',
+  ]
+endif
+
+if cc.has_header('linux/dma-heap.h')
+  gst_allocators_sources += [
+    'gstdmabufheaps.c',
   ]
 endif
 
