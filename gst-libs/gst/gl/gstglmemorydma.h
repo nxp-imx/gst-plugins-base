@@ -60,7 +60,7 @@ struct _GstGLMemoryDMA
 struct _GstGLMemoryDMAAllocator
 {
   GstGLMemoryAllocator parent;
-  GstAllocator  *ion_allocator;
+  GstAllocator  *allocator;
 };
 
 struct _GstGLMemoryDMAAllocatorClass

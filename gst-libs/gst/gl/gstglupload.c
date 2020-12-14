@@ -57,6 +57,10 @@
 #include "gstglphymemory.h"
 #endif
 
+#if GST_GL_HAVE_DMABUFHEAPS
+#include <gst/allocators/gstdmabufheaps.h>
+#endif
+
 #if GST_GL_HAVE_IONDMA
 #include <gst/allocators/gstionmemory.h>
 #endif
@@ -1136,8 +1140,12 @@ _dma_buf_upload_setup_buffer_pool (GstBufferPool ** pool,
 
   /* if user not provide an allocator, then use default ion allocator */
   if (!allocator) {
+#if GST_GL_HAVE_DMABUFHEAPS
+    allocator = gst_dmabufheaps_allocator_obtain ();
+#endif
 #if GST_GL_HAVE_IONDMA
-    allocator = gst_ion_allocator_obtain ();
+    if (!allocator)
+      allocator = gst_ion_allocator_obtain ();
 #endif
   }
 
@@ -1473,9 +1481,14 @@ _dma_buf_upload_propose_allocation (gpointer impl, GstQuery * decide_query,
     GST_DEBUG ("upstream has memory:GLMemory feature");
     return;
   }
-#if GST_GL_HAVE_IONDMA
-  allocator = gst_ion_allocator_obtain ();
+#if GST_GL_HAVE_DMABUFHEAPS
+  allocator = gst_dmabufheaps_allocator_obtain ();
 #endif
+#if GST_GL_HAVE_IONDMA
+  if (!allocator)
+    allocator = gst_ion_allocator_obtain ();
+#endif
+
   if (!allocator) {
     GST_WARNING ("New ion allocator failed.");
     return;
@@ -2872,7 +2885,7 @@ _directviv_upload_free (gpointer impl)
     gst_buffer_unref (directviv->inbuf);
 
   if (directviv->pool)
-    gst_object_unref(directviv->pool);
+    gst_object_unref (directviv->pool);
 
   g_free (impl);
 }
