@@ -35,6 +35,7 @@ G_BEGIN_DECLS
 #mesondefine GST_GL_HAVE_VIV_DIRECTVIV
 #mesondefine GST_GL_HAVE_PHYMEM
 #mesondefine GST_GL_HAVE_IONDMA
+#mesondefine GST_GL_HAVE_DMABUFHEAPS
 
 #mesondefine GST_GL_HAVE_GLEGLIMAGEOES
 #mesondefine GST_GL_HAVE_GLCHAR

@@ -147,6 +147,7 @@ glconf_options = [
     'GST_GL_HAVE_VIV_DIRECTVIV',
     'GST_GL_HAVE_PHYMEM',
     'GST_GL_HAVE_IONDMA',
+    'GST_GL_HAVE_DMABUFHEAPS',
 
     'GST_GL_HAVE_GLEGLIMAGEOES',
     'GST_GL_HAVE_GLCHAR',
@@ -572,13 +573,18 @@ if need_platform_egl != 'no'
       gl_misc_deps += allocators_dep
       glconf.set('GST_GL_HAVE_DMABUF', 1)
       if cc.has_header('linux/ion.h')
+        glconf.set('GST_GL_HAVE_IONDMA', 1)
+      endif
+      if cc.has_header('linux/dma-heap.h')
+        glconf.set('GST_GL_HAVE_DMABUFHEAPS', 1)
+      endif
+      if cc.has_header('linux/ion.h') or cc.has_header('linux/dma-heap.h')
           gl_sources += [
             'gstglmemorydma.c',
           ]
           gl_headers += [
             'gstglmemorydma.h',
           ]
-        glconf.set('GST_GL_HAVE_IONDMA', 1)
       endif
     endif
 

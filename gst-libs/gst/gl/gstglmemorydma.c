@@ -29,6 +29,10 @@
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/gl/gstglmemorydma.h>
 
+#if GST_GL_HAVE_DMABUFHEAPS
+#include <gst/allocators/gstdmabufheaps.h>
+#endif
+
 #if GST_GL_HAVE_IONDMA
 #include <gst/allocators/gstionmemory.h>
 #endif
@@ -49,8 +53,13 @@ gst_gl_memory_dma_init_instance (void)
   GST_DEBUG_CATEGORY_INIT (GST_CAT_GL_DMA_MEMORY, "glmemorydma", 0,
       "OpenGL dma memory");
 
+#if GST_GL_HAVE_DMABUFHEAPS
+  ion_allocator = gst_dmabufheaps_allocator_obtain ();
+#endif
+
 #if GST_GL_HAVE_IONDMA
-  ion_allocator = gst_ion_allocator_obtain ();
+  if (!ion_allocator)
+    ion_allocator = gst_ion_allocator_obtain ();
 #endif
 
   if (!ion_allocator)
