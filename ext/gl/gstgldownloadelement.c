@@ -37,7 +37,7 @@
 #include <gst/gl/gstglphymemory.h>
 #endif
 
-#if GST_GL_HAVE_IONDMA
+#if GST_GL_HAVE_IONDMA || GST_GL_HAVE_DMABUFHEAPS
 #include <gst/gl/gstglmemorydma.h>
 #endif
 
@@ -1326,13 +1326,17 @@ gst_gl_download_element_prepare_output_buffer (GstBaseTransform * bt,
   GstBaseTransformClass *bclass = GST_BASE_TRANSFORM_GET_CLASS (bt);
   GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
   GstGLSyncMeta *in_sync_meta;
-  GstCaps *src_caps = gst_pad_get_current_caps (bt->srcpad);
   gint i, n;
+
+#if GST_GL_HAVE_IONDMA || GST_GL_HAVE_PHYMEM || GST_GL_HAVE_DMABUFHEAPS
+  GstCaps *src_caps = gst_pad_get_current_caps (bt->srcpad);
   GstGLMemory *glmem;
 
-  glmem = gst_buffer_peek_memory (inbuf, 0);
-#if GST_GL_HAVE_IONDMA
-  if (gst_is_gl_memory_dma (glmem)) {
+  glmem = (GstGLMemory *) gst_buffer_peek_memory (inbuf, 0);
+#endif
+
+#if GST_GL_HAVE_IONDMA || GST_GL_HAVE_DMABUFHEAPS
+  if (gst_is_gl_memory_dma ((GstMemory *) glmem)) {
     GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
     GstVideoInfo info;
 
@@ -1346,8 +1350,7 @@ gst_gl_download_element_prepare_output_buffer (GstBaseTransform * bt,
 #endif
 
 #if GST_GL_HAVE_PHYMEM
-  if (gst_is_gl_physical_memory (glmem)) {
-    GstCaps *src_caps;
+  if (gst_is_gl_physical_memory ((GstMemory *) glmem)) {
     GstVideoInfo info;
     GstGLContext *context = GST_GL_BASE_FILTER (bt)->context;
 
@@ -1627,7 +1630,7 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   }
 #endif
 
-#if GST_GL_HAVE_IONDMA
+#if GST_GL_HAVE_IONDMA || GST_GL_HAVE_DMABUFHEAPS
   if (!pool && (fmt == GST_VIDEO_FORMAT_RGBA || fmt == GST_VIDEO_FORMAT_RGB16)) {
     allocator = gst_gl_memory_dma_allocator_obtain ();
     GST_DEBUG_OBJECT (bt, "obtain dma memory allocator %p.", allocator);
