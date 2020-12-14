@@ -3520,7 +3520,7 @@ _do_convert_one_view (GstGLContext * context, GstGLColorConvert * convert,
   in_width = GST_VIDEO_INFO_WIDTH (&convert->in_info);
   in_height = GST_VIDEO_INFO_HEIGHT (&convert->in_info);
 
-#if GST_GL_HAVE_IONDMA || GST_GL_HAVE_DMABUFHEAPS
+#if GST_GL_HAVE_DMABUFHEAPS
   /* In GLES2 platform, out size and mem size may be different,
    * causing memory copy after converting. For DMA memory, skip
    * copying, because glCopyTexImage2D() cannot copy texture to dmabuf. */

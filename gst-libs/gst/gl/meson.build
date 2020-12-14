@@ -156,6 +156,7 @@ glconf_options = [
     'GST_GL_HAVE_DMABUF',
     'GST_GL_HAVE_VIV_DIRECTVIV',
     'GST_GL_HAVE_PHYMEM',
+    'GST_GL_HAVE_DMABUFHEAPS',
 
     'GST_GL_HAVE_GLEGLIMAGEOES',
     'GST_GL_HAVE_GLCHAR',
@@ -587,6 +588,17 @@ if need_platform_egl != 'no'
     if libdrm_dep.type_name() == 'internal' or cc.has_header('drm_fourcc.h', dependencies: libdrm_dep)
       gl_misc_deps += [allocators_dep, libdrm_dep]
       glconf.set('GST_GL_HAVE_DMABUF', 1)
+      if cc.has_header('linux/dma-heap.h')
+        glconf.set('GST_GL_HAVE_DMABUFHEAPS', 1)
+      endif
+      if cc.has_header('linux/dma-heap.h')
+          gl_sources += [
+            'gstglmemorydma.c',
+          ]
+          gl_headers += [
+            'gstglmemorydma.h',
+          ]
+      endif
     endif
 
     egl_includes = '''
