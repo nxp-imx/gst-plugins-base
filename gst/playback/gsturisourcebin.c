@@ -573,29 +573,25 @@ static void
 gst_uri_source_bin_update_connection_speed (GstURISourceBin * urisrc)
 {
   guint64 speed = 0;
-  GList *iter;
 
-  if (!urisrc->is_adaptive) {
-    return;
-  }
+  GParamSpec *pspec = NULL;
+  GList *tmp;
 
   GST_OBJECT_LOCK (urisrc);
   speed = urisrc->connection_speed / 1000;
   GST_OBJECT_UNLOCK (urisrc);
 
-  GST_URI_SOURCE_BIN_LOCK (urisrc);
-  for (iter = urisrc->src_infos; iter; iter = iter->next) {
-    ChildSrcPadInfo *info = iter->data;
-    GParamSpec *pspec = NULL;
-    if (!info->demuxer)
-      continue;
-
-    pspec = g_object_class_find_property (G_OBJECT_GET_CLASS (info->demuxer),
-        "connection-speed");
-    if (pspec != NULL)
-      g_object_set (info->demuxer, "connection-speed", speed, NULL);
+  if (urisrc->is_adaptive) {
+    for (tmp = urisrc->src_infos; tmp; tmp = tmp->next) {
+      ChildSrcPadInfo *info = tmp->data;
+      if (info->demuxer) {
+        pspec = g_object_class_find_property (G_OBJECT_GET_CLASS (info->demuxer),
+            "connection-speed");
+        if (pspec != NULL)
+          g_object_set (info->demuxer, "connection-speed", speed, NULL);
+      }
+    }
   }
-  GST_URI_SOURCE_BIN_UNLOCK (urisrc);
 }
 
 static void

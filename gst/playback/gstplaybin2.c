@@ -2473,6 +2473,7 @@ gst_play_bin_set_property (GObject * object, guint prop_id,
       GST_PLAY_BIN_LOCK (playbin);
       playbin->connection_speed = g_value_get_uint64 (value) * 1000;
       connection_speed = playbin->connection_speed;
+      GST_PLAY_BIN_UNLOCK (playbin);
       if (playbin->curr_group) {
         GST_SOURCE_GROUP_LOCK (playbin->curr_group);
         if (playbin->curr_group->uridecodebin) {
@@ -2489,7 +2490,6 @@ gst_play_bin_set_property (GObject * object, guint prop_id,
         }
         GST_SOURCE_GROUP_UNLOCK (playbin->next_group);
       }
-      GST_PLAY_BIN_UNLOCK (playbin);
       break;
     }
     case PROP_BUFFER_SIZE:
