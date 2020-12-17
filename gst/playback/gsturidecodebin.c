@@ -828,13 +828,11 @@ gst_uri_decode_bin_set_connection_speed (GstURIDecodeBin * dec)
   GST_OBJECT_UNLOCK (dec);
 
   /* set the property on all decodebins now */
-  GST_URI_DECODE_BIN_LOCK (dec);
   for (walk = dec->decodebins; walk; walk = g_slist_next (walk)) {
     GObject *decodebin = G_OBJECT (walk->data);
 
     g_object_set (decodebin, "connection-speed", connection_speed / 1000, NULL);
   }
-  GST_URI_DECODE_BIN_UNLOCK (dec);
 }
 
 static void

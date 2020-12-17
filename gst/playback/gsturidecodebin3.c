@@ -256,6 +256,8 @@ struct _GstURIDecodeBin3
   gint shutdown;
 
   GList *output_pads;           /* List of OutputPad */
+
+  GList *source_handlers;       /* List of SourceHandler */
 };
 
 static GstStateChangeReturn activate_play_item (GstPlayItem * item);
@@ -1530,6 +1532,9 @@ new_source_handler (GstURIDecodeBin3 * uridecodebin, GstPlayItem * item,
       g_signal_connect (handler->urisourcebin, "about-to-finish",
       (GCallback) src_about_to_finish_cb, handler);
 
+  uridecodebin->source_handlers =
+      g_list_append (uridecodebin->source_handlers, handler);
+
   handler->expected_pads = 1;
 
   return handler;
@@ -1563,6 +1568,25 @@ source_handler_set_eos (GstSourceHandler * handler)
 }
 
 static void
+gst_uri_decode_bin3_set_connection_speed (GstURIDecodeBin3 * dec)
+{
+  GList *walk;
+  guint64 connection_speed;
+
+  GST_OBJECT_LOCK (dec);
+  connection_speed = dec->connection_speed;
+  GST_OBJECT_UNLOCK (dec);
+
+  /* set the property on all decodebins now */
+  for (walk = dec->source_handlers; walk; walk = g_list_next (walk)) {
+    GstSourceHandler *handler = (GstSourceHandler *) (walk->data);
+
+    g_object_set (handler->urisourcebin, "connection-speed",
+        connection_speed / 1000, NULL);
+  }
+}
+
+static void
 gst_uri_decode_bin3_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
@@ -1579,6 +1603,7 @@ gst_uri_decode_bin3_set_property (GObject * object, guint prop_id,
       GST_OBJECT_LOCK (dec);
       dec->connection_speed = g_value_get_uint64 (value) * 1000;
       GST_OBJECT_UNLOCK (dec);
+      gst_uri_decode_bin3_set_connection_speed (dec);
       break;
     case PROP_BUFFER_SIZE:
       dec->buffer_size = g_value_get_int (value);
@@ -1739,7 +1764,11 @@ free_source_handler (GstURIDecodeBin3 * uridecodebin,
   }
   if (handler->pending_buffering_msg)
     gst_message_unref (handler->pending_buffering_msg);
-  g_free (handler);
+
+  uridecodebin->source_handlers =
+      g_list_remove (uridecodebin->source_handlers, handler);
+  g_slice_free (GstSourceHandler, handler);
+
 }
 
 static GstSourceItem *
