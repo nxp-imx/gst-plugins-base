@@ -70,9 +70,9 @@ gst_dmabuf_mem_map (GstMemory * gmem, GstMapInfo * info, gsize maxsize)
 #ifdef HAVE_LINUX_DMA_BUF_H
   if (ret) {
     struct dma_buf_phys dma_phys;
-    if (ioctl (gst_fd_memory_get_fd (gmem), DMA_BUF_IOCTL_SYNC, &sync) < 0)
-      GST_WARNING_OBJECT (allocator, "Failed to synchronize DMABuf: %s (%i)",
-          g_strerror (errno), errno);
+    /* if (ioctl (gst_fd_memory_get_fd (gmem), DMA_BUF_IOCTL_SYNC, &sync) < 0)
+       GST_WARNING_OBJECT (allocator, "Failed to synchronize DMABuf: %s (%i)",
+       g_strerror (errno), errno); */
     ioctl (gst_fd_memory_get_fd (gmem), DMA_BUF_IOCTL_PHYS, &dma_phys);
   }
 #endif
@@ -94,9 +94,9 @@ gst_dmabuf_mem_unmap (GstMemory * gmem, GstMapInfo * info)
   if (info->flags & GST_MAP_WRITE)
     sync.flags |= DMA_BUF_SYNC_WRITE;
 
-  if (ioctl (gst_fd_memory_get_fd (gmem), DMA_BUF_IOCTL_SYNC, &sync) < 0)
-    GST_WARNING_OBJECT (allocator, "Failed to synchronize DMABuf: %s (%i)",
-        g_strerror (errno), errno);
+  /* if (ioctl (gst_fd_memory_get_fd (gmem), DMA_BUF_IOCTL_SYNC, &sync) < 0)
+     GST_WARNING_OBJECT (allocator, "Failed to synchronize DMABuf: %s (%i)",
+     g_strerror (errno), errno); */
   ioctl (gst_fd_memory_get_fd (gmem), DMA_BUF_IOCTL_PHYS, &dma_phys);
 #else
   GST_WARNING_OBJECT (allocator, "Using DMABuf without synchronization.");
