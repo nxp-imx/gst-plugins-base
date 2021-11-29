@@ -128,6 +128,7 @@ typedef enum {
   GST_AUDIO_FORMAT_F32BE,
   GST_AUDIO_FORMAT_F64LE,
   GST_AUDIO_FORMAT_F64BE,
+  GST_AUDIO_FORMAT_IEC958_SUBFRAME_LE,
 
   /* Update GST_AUDIO_FORMAT_LAST below when adding more formats here */
 
@@ -155,7 +156,7 @@ typedef enum {
  *
  * Since: 1.26
  */
-#define GST_AUDIO_FORMAT_LAST (GST_AUDIO_FORMAT_F64BE + 1)
+#define GST_AUDIO_FORMAT_LAST (GST_AUDIO_FORMAT_IEC958_SUBFRAME_LE + 1)
 
 typedef struct _GstAudioFormatInfo GstAudioFormatInfo;
 
