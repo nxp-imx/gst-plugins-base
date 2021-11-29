@@ -135,6 +135,8 @@ gst_alsa_get_pcm_format (GstAudioFormat fmt)
       return SND_PCM_FORMAT_FLOAT64_LE;
     case GST_AUDIO_FORMAT_F64BE:
       return SND_PCM_FORMAT_FLOAT64_BE;
+    case GST_AUDIO_FORMAT_IEC958_SUBFRAME_LE:
+      return SND_PCM_FORMAT_IEC958_SUBFRAME_LE;
     default:
       break;
   }
@@ -187,10 +189,16 @@ gst_alsa_detect_formats (GstObject * obj, snd_pcm_hw_params_t * hw_params,
     const GValue *format;
     GValue list = G_VALUE_INIT;
 
+    gboolean is_iec958_format = FALSE;
     s = gst_caps_get_structure (in_caps, i);
     if (!gst_structure_has_name (s, "audio/x-raw")) {
-      GST_DEBUG_OBJECT (obj, "skipping non-raw format");
-      continue;
+      if (gst_structure_has_name (s, "audio/x-iec958")) {
+        is_iec958_format = TRUE;
+        GST_DEBUG_OBJECT (obj, "audio/x-iec958");
+      } else {
+        GST_DEBUG_OBJECT (obj, "skipping non-raw format or iec958 format");
+        continue;
+      }
     }
 
     format = gst_structure_get_value (s, "format");
@@ -207,12 +215,28 @@ gst_alsa_detect_formats (GstObject * obj, snd_pcm_hw_params_t * hw_params,
         const GValue *val;
 
         val = gst_value_list_get_value (format, i);
-        if (format_supported (val, mask, endianness))
+        if (format_supported (val, mask, endianness)) {
           gst_value_list_append_value (&list, val);
+        } else {
+          if (is_iec958_format) {
+            if (snd_pcm_format_mask_test (mask,
+                    SND_PCM_FORMAT_IEC958_SUBFRAME_LE)) {
+              gst_value_list_append_value (&list, val);
+            }
+          }
+        }
       }
     } else if (G_VALUE_HOLDS_STRING (format)) {
-      if (format_supported (format, mask, endianness))
+      if (format_supported (format, mask, endianness)) {
         gst_value_list_append_value (&list, format);
+      } else {
+        if (is_iec958_format) {
+          if (snd_pcm_format_mask_test (mask,
+                  SND_PCM_FORMAT_IEC958_SUBFRAME_LE)) {
+            gst_value_list_append_value (&list, format);
+          }
+        }
+      }
     }
 
     if (gst_value_list_get_size (&list) > 1) {

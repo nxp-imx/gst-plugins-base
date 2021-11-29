@@ -112,7 +112,11 @@ GST_STATIC_PAD_TEMPLATE ("src",
     GST_STATIC_CAPS ("audio/x-raw, "
         "format = (string) " GST_AUDIO_FORMATS_ALL ", "
         "layout = (string) interleaved, "
-        "rate = (int) [ 1, MAX ], " "channels = (int) [ 1, MAX ]")
+        "rate = (int) [ 1, MAX ], " "channels = (int) [ 1, MAX ]; "
+        "audio/x-iec958, "
+        "format = U32LE, "
+        "layout = (string) interleaved, "
+        "rate = (int) [ 1, MAX ], " "channels = (int) 2")
     );
 
 static void
@@ -741,6 +745,9 @@ alsasrc_parse_spec (GstAlsaSrc * alsa, GstAudioRingBufferSpec * spec)
       break;
     case GST_AUDIO_RING_BUFFER_FORMAT_TYPE_MU_LAW:
       alsa->format = SND_PCM_FORMAT_MU_LAW;
+      break;
+    case GST_AUDIO_RING_BUFFER_FORMAT_TYPE_IEC958:
+      alsa->format = SND_PCM_FORMAT_IEC958_SUBFRAME_LE;
       break;
     default:
       goto error;

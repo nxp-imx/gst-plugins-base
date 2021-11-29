@@ -249,7 +249,8 @@ gst_audio_ring_buffer_parse_caps (GstAudioRingBufferSpec * spec, GstCaps * caps)
       goto parse_error;
 
     spec->type = GST_AUDIO_RING_BUFFER_FORMAT_TYPE_IEC958;
-    info.bpf = 4;
+    gst_structure_get_int (structure, "channels", &info.channels);
+    info.bpf = 8;
   } else if (g_str_equal (mimetype, "audio/x-ac3")) {
     /* extract the needed information from the cap */
     if (!(gst_structure_get_int (structure, "rate", &info.rate)))
