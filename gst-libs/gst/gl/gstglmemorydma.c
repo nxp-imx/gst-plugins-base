@@ -80,7 +80,7 @@ gst_gl_memory_dma_allocator_obtain (void)
 {
 
   static GOnce once = G_ONCE_INIT;
-  GstAllocator *allocator;
+  GstAllocator *allocator = NULL;
 
   g_once (&once, (GThreadFunc) gst_gl_memory_dma_init_instance, NULL);
 
@@ -110,6 +110,7 @@ static gboolean
 _gl_mem_create (GstGLMemoryDMA * gl_mem, GError ** error)
 {
   GstGLContext *context = gl_mem->mem.mem.context;
+  const GstGLFuncs *gl = context->gl_vtable;
   GstGLBaseMemoryAllocatorClass *alloc_class;
   guint dma_fd;
 
@@ -126,8 +127,6 @@ _gl_mem_create (GstGLMemoryDMA * gl_mem, GError ** error)
     GST_CAT_ERROR (GST_CAT_GL_DMA_MEMORY, "Can't allocate eglimage memory");
     return FALSE;
   }
-
-  const GstGLFuncs *gl = context->gl_vtable;
 
   gl->ActiveTexture (GL_TEXTURE0);
   gl->BindTexture (GL_TEXTURE_2D, gl_mem->mem.tex_id);
@@ -193,7 +192,7 @@ _gl_mem_dma_alloc (GstGLBaseMemoryAllocator * allocator,
       gst_allocator_alloc (gl_dma_alloc->ion_allocator, size, mem->params);
 
   if (!mem->dma) {
-    GST_CAT_ERROR (GST_CAT_GL_DMA_MEMORY, "Can't allocate dma memory size %d",
+    GST_CAT_ERROR (GST_CAT_GL_DMA_MEMORY, "Can't allocate dma memory size %" G_GSIZE_FORMAT,
         size);
     g_free (mem);
     return NULL;
@@ -262,7 +261,7 @@ gst_gl_memory_dma_buffer_to_gstbuffer (GstGLContext * ctx, GstVideoInfo * info,
   gst_gl_context_thread_add (ctx, (GstGLContextThreadFunc) _finish_texture,
       NULL);
 
-  glmem = gst_buffer_peek_memory (glbuf, 0);
+  glmem = (GstGLMemoryDMA *) gst_buffer_peek_memory (glbuf, 0);
 
   buf = gst_buffer_new ();
   gst_buffer_append_memory (buf, (GstMemory *) glmem->dma);
