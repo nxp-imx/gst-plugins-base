@@ -172,6 +172,7 @@ G_BEGIN_DECLS
  * @GST_VIDEO_FORMAT_Y012_LE: 12-bit grayscale, least significant byte first, expanded to 16bits, zeros in the 4 low bits,  (Since: 1.24)
  * @GST_VIDEO_FORMAT_Y312_LE: packed 4:4:4 YUV, 12 bits per channel (Y-U-V) (Since: 1.24)
  * @GST_VIDEO_FORMAT_BGR_12LE: reverse RGB, 12 bits per channel (Since: 1.24)
+ * @GST_VIDEO_FORMAT_BGRA_12LE: reverse RGB with alpha channel last, 12 bits per channel (Since: 1.24)
  *
  * Enum value describing the most common video formats.
  *
@@ -652,6 +653,16 @@ typedef enum {
    * Since: 1.24
    */
   GST_VIDEO_FORMAT_BGR_12LE,
+
+  /**
+   * GST_VIDEO_FORMAT_BGRA_12LE:
+   *
+   * Reverse RGB with alpha channel last, 12 bits little endian.
+   * expanded to 16 bits, data in the 12 high bits, zeros in the 4 low bits
+   *
+   * Since: 1.24
+   */
+  GST_VIDEO_FORMAT_BGRA_12LE,
 } GstVideoFormat;
 
 #define GST_VIDEO_MAX_PLANES 4
@@ -1136,7 +1147,7 @@ gconstpointer  gst_video_format_get_palette          (GstVideoFormat format, gsi
     "Y444, BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, " \
     "BGR, Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, " \
     "NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, " \
-    "YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, BGR_12LE, GRAY16_BE, GRAY16_LE, " \
+    "YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, BGR_12LE, BGRA_12LE, GRAY16_BE, GRAY16_LE, " \
     "GRAY10_LE32, GRAY8"
 #elif G_BYTE_ORDER == G_LITTLE_ENDIAN
 #define GST_VIDEO_FORMATS_ALL_STR "A444_16LE, A444_16BE, AYUV64, RGBA64_LE, " \
@@ -1155,7 +1166,7 @@ gconstpointer  gst_video_format_get_palette          (GstVideoFormat format, gsi
     "BGRP, GBR, RGBP, NV24, v308, IYU2, RGBx, xRGB, BGRx, xBGR, RGB, BGR, " \
     "Y42B, NV16, NV61, YUY2, YVYU, UYVY, VYUY, I420, YV12, NV12, NV21, " \
     "NV12_16L32S, NV12_32L32, NV12_4L4, NV12_64Z32, NV12_8L128, Y41B, IYU1, " \
-    "YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, BGR_12LE, GRAY16_LE, GRAY16_BE, " \
+    "YUV9, YVU9, BGR16, RGB16, BGR15, RGB15, RGB8P, BGR_12LE, BGRA_12LE, GRAY16_LE, GRAY16_BE, " \
     "GRAY10_LE32, GRAY8"
 #endif
 
