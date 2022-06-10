@@ -6670,6 +6670,59 @@ pack_Y212_LE (const GstVideoFormatInfo * info, GstVideoPackFlags flags,
   }
 }
 
+#define PACK_Y312_LE GST_VIDEO_FORMAT_AYUV64, unpack_Y312_LE, 1, pack_Y312_LE
+static void
+unpack_Y312_LE (const GstVideoFormatInfo * info, GstVideoPackFlags flags,
+    gpointer dest, const gpointer data[GST_VIDEO_MAX_PLANES],
+    const gint stride[GST_VIDEO_MAX_PLANES], gint x, gint y, gint width)
+{
+  int i;
+  const guint16 *restrict s = GET_LINE (y);
+  guint16 *restrict d = dest;
+  guint16 Y, U, V;
+
+  s += x * 3;
+
+  for (i = 0; i < width; i++) {
+    Y = GST_READ_UINT16_LE (s + 3 * i + 0) & 0xfff0;
+    U = GST_READ_UINT16_LE (s + 3 * i + 1) & 0xfff0;
+    V = GST_READ_UINT16_LE (s + 3 * i + 2) & 0xfff0;
+
+    if (!(flags & GST_VIDEO_PACK_FLAG_TRUNCATE_RANGE)) {
+      U |= (U >> 12);
+      Y |= (Y >> 12);
+      V |= (V >> 12);
+    }
+
+    d[4 * i + 0] = 0xffff;
+    d[4 * i + 1] = Y;
+    d[4 * i + 2] = U;
+    d[4 * i + 3] = V;
+  }
+}
+
+static void
+pack_Y312_LE (const GstVideoFormatInfo * info, GstVideoPackFlags flags,
+    const gpointer src, gint sstride, gpointer data[GST_VIDEO_MAX_PLANES],
+    const gint stride[GST_VIDEO_MAX_PLANES], GstVideoChromaSite chroma_site,
+    gint y, gint width)
+{
+  int i;
+  guint16 *restrict d = GET_LINE (y);
+  const guint16 *restrict s = src;
+  guint16 Y, U, V;
+
+  for (i = 0; i < width; i++) {
+    Y = s[4 * i + 1] & 0xfff0;
+    U = s[4 * i + 2] & 0xfff0;
+    V = s[4 * i + 3] & 0xfff0;
+
+    GST_WRITE_UINT16_LE (d + 3 * i + 0, Y);
+    GST_WRITE_UINT16_LE (d + 3 * i + 1, U);
+    GST_WRITE_UINT16_LE (d + 3 * i + 2, V);
+  }
+}
+
 #define PACK_Y412_BE GST_VIDEO_FORMAT_AYUV64, unpack_Y412_BE, 1, pack_Y412_BE
 static void
 unpack_Y412_BE (const GstVideoFormatInfo * info, GstVideoPackFlags flags,
@@ -7793,6 +7846,8 @@ static const VideoFormat formats[] = {
       SUB4444, PACK_RBGA),
   MAKE_GRAY_LE_FORMAT (Y012_LE, "raw video", DPTH12, PSTR2, PLANE0, OFFS0,
       SUB4, PACK_GRAY16_LE),
+  MAKE_YUV_LE_FORMAT (Y312_LE, "raw video", 0x00000000, DPTH12_12_12_HI,
+      PSTR222, PLANE0, OFFS0, SUB444, PACK_Y312_LE),
 };
 
 G_GNUC_END_IGNORE_DEPRECATIONS;
