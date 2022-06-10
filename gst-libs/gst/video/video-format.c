@@ -3486,6 +3486,58 @@ pack_GBRA_12BE (const GstVideoFormatInfo * info, GstVideoPackFlags flags,
   }
 }
 
+#define PACK_BGR_12LE GST_VIDEO_FORMAT_ARGB64, unpack_BGR_12LE, 1, pack_BGR_12LE
+static void
+unpack_BGR_12LE (const GstVideoFormatInfo * info, GstVideoPackFlags flags,
+    gpointer dest, const gpointer data[GST_VIDEO_MAX_PLANES],
+    const gint stride[GST_VIDEO_MAX_PLANES], gint x, gint y, gint width)
+{
+  int i;
+  const guint16 *restrict s = GET_LINE (y);
+  guint16 *d = dest, B, G, R;
+
+  s += x * 3;
+
+  for (i = 0; i < width; i++) {
+    B = GST_READ_UINT16_LE (s + 3 * i + 0) & 0xfff0;
+    G = GST_READ_UINT16_LE (s + 3 * i + 1) & 0xfff0;
+    R = GST_READ_UINT16_LE (s + 3 * i + 2) & 0xfff0;
+
+    if (!(flags & GST_VIDEO_PACK_FLAG_TRUNCATE_RANGE)) {
+      R |= (R >> 12);
+      G |= (G >> 12);
+      B |= (B >> 12);
+    }
+
+    d[i * 4 + 0] = 0xffff;
+    d[i * 4 + 1] = R;
+    d[i * 4 + 2] = G;
+    d[i * 4 + 3] = B;
+  }
+}
+
+static void
+pack_BGR_12LE (const GstVideoFormatInfo * info, GstVideoPackFlags flags,
+    const gpointer src, gint sstride, gpointer data[GST_VIDEO_MAX_PLANES],
+    const gint stride[GST_VIDEO_MAX_PLANES], GstVideoChromaSite chroma_site,
+    gint y, gint width)
+{
+  int i;
+  guint16 *restrict d = GET_LINE (y);
+  const guint16 *restrict s = src;
+  guint16 B, G, R;
+
+  for (i = 0; i < width; i++) {
+    R = s[i * 4 + 1];
+    G = s[i * 4 + 2];
+    B = s[i * 4 + 3];
+
+    GST_WRITE_UINT16_LE (d + 3 * i + 0, B);
+    GST_WRITE_UINT16_LE (d + 3 * i + 1, G);
+    GST_WRITE_UINT16_LE (d + 3 * i + 2, R);
+  }
+}
+
 #define PACK_Y444_10LE GST_VIDEO_FORMAT_AYUV64, unpack_Y444_10LE, 1, pack_Y444_10LE
 static void
 unpack_Y444_10LE (const GstVideoFormatInfo * info, GstVideoPackFlags flags,
@@ -7848,6 +7900,8 @@ static const VideoFormat formats[] = {
       SUB4, PACK_GRAY16_LE),
   MAKE_YUV_LE_FORMAT (Y312_LE, "raw video", 0x00000000, DPTH12_12_12_HI,
       PSTR222, PLANE0, OFFS0, SUB444, PACK_Y312_LE),
+  MAKE_RGB_LE_FORMAT (BGR_12LE, "raw video", DPTH12_12_12_HI, PSTR222, PLANE0,
+      OFFS0, SUB444, PACK_BGR_12LE),
 };
 
 G_GNUC_END_IGNORE_DEPRECATIONS;
