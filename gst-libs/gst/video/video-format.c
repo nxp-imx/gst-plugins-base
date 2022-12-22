@@ -7353,6 +7353,7 @@ typedef struct
 #define DPTH10_10_10_10  10, 4, { 0, 0, 0, 0 }, { 10, 10, 10, 10 }
 #define DPTH10_10_10_HI  16, 3, { 6, 6, 6, 0 }, { 10, 10, 10, 0 }
 #define DPTH10_10_10_2   10, 4, { 0, 0, 0, 0 }, { 10, 10, 10, 2}
+#define DPTH12           12, 1, { 0, 0, 0, 0 }, { 12, 0, 0, 0 }
 #define DPTH12_12_12     12, 3, { 0, 0, 0, 0 }, { 12, 12, 12, 0 }
 #define DPTH12_12_12_HI  16, 3, { 4, 4, 4, 0 }, { 12, 12, 12, 0 }
 #define DPTH12_12_12_12  12, 4, { 0, 0, 0, 0 }, { 12, 12, 12, 12 }
@@ -7790,6 +7791,8 @@ static const VideoFormat formats[] = {
       OFFS0, SUB444, PACK_GBR_16BE),
   MAKE_RGBA_FORMAT (RBGA, "raw video", DPTH8888, PSTR4444, PLANE0, OFFS0213,
       SUB4444, PACK_RBGA),
+  MAKE_GRAY_LE_FORMAT (Y012_LE, "raw video", DPTH12, PSTR2, PLANE0, OFFS0,
+      SUB4, PACK_GRAY16_LE),
 };
 
 G_GNUC_END_IGNORE_DEPRECATIONS;

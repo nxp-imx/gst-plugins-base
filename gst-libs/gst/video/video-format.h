@@ -169,6 +169,7 @@ G_BEGIN_DECLS
  * @GST_VIDEO_FORMAT_GBR_16LE: planar 4:4:4 RGB, 16 bits per channel (Since: 1.24)
  * @GST_VIDEO_FORMAT_GBR_16BE: planar 4:4:4 RGB, 16 bits per channel (Since: 1.24)
  * @GST_VIDEO_FORMAT_RBGA: packed RGB with alpha, 8 bits per channel (Since: 1.24)
+ * @GST_VIDEO_FORMAT_Y012_LE: 12-bit grayscale, least significant byte first, expanded to 16bits, zeros in the 4 low bits,  (Since: 1.24)
  *
  * Enum value describing the most common video formats.
  *
@@ -619,6 +620,17 @@ typedef enum {
    * Since: 1.24
    */
   GST_VIDEO_FORMAT_RBGA,
+
+  /**
+   * GST_VIDEO_FORMAT_Y012_LE:
+   *
+   * 12-bit grayscale, least significant byte first
+   * expanded to 16 bits, little endian, data in the 12 high bits, zeros in the 4 low bits
+   *
+   * Since: 1.24
+   */
+  GST_VIDEO_FORMAT_Y012_LE,
+
 } GstVideoFormat;
 
 #define GST_VIDEO_MAX_PLANES 4
@@ -1096,7 +1108,7 @@ gconstpointer  gst_video_format_get_palette          (GstVideoFormat format, gsi
     "RGB10A2_LE, A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, " \
     "A420, AV12, Y444_16BE, GBR_16BE, Y444_16LE, GBR_16LE, v216, P016_BE, " \
     "P016_LE, Y444_12BE, GBR_12BE, Y444_12LE, GBR_12LE, I422_12BE, I422_12LE, " \
-    "Y212_BE, Y212_LE, I420_12BE, I420_12LE, P012_BE, P012_LE, Y444_10BE, " \
+    "Y212_BE, Y012_LE, Y212_LE, I420_12BE, I420_12LE, P012_BE, P012_LE, Y444_10BE, " \
     "GBR_10BE, Y444_10LE, GBR_10LE, r210, I422_10BE, I422_10LE, NV16_10LE32, " \
     "Y210, UYVP, v210, I420_10BE, I420_10LE, P010_10BE, MT2110R, MT2110T, " \
     "NV12_10BE_8L128, NV12_10LE40_4L4, P010_10LE, NV12_10LE40, NV12_10LE32, " \
@@ -1114,7 +1126,7 @@ gconstpointer  gst_video_format_get_palette          (GstVideoFormat format, gsi
     "A422_10LE, A422_10BE, A420_10LE, A420_10BE, BGR10A2_LE, RGB10A2_LE, Y410, " \
     "A444, GBRA, AYUV, VUYA, RGBA, RBGA, ARGB, BGRA, ABGR, A422, A420, AV12, " \
     "Y444_16LE, GBR_16LE, Y444_16BE, GBR_16BE, v216, P016_LE, P016_BE, " \
-    "Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y212_LE, " \
+    "Y444_12LE, GBR_12LE, Y444_12BE, GBR_12BE, I422_12LE, I422_12BE, Y012_LE, Y212_LE, " \
     "Y212_BE, I420_12LE, I420_12BE, P012_LE, P012_BE, Y444_10LE, GBR_10LE, " \
     "Y444_10BE, GBR_10BE, r210, I422_10LE, I422_10BE, NV16_10LE32, Y210, UYVP, " \
     "v210, I420_10LE, I420_10BE, P010_10LE, NV12_10LE40, NV12_10LE32, " \
