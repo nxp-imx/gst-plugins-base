@@ -163,9 +163,10 @@ _finish_texture (GstGLContext * ctx, gpointer * data)
 }
 
 static void
-_do_viv_direct_tex_bind_mem (GstGLContext * ctx, DirectVIVData * data)
+_do_viv_direct_tex_bind_mem (GstGLContext * ctx, void * data_in)
 {
   GstGLFuncs *gl = ctx->gl_vtable;
+  DirectVIVData *data = (DirectVIVData*) data_in;
 
   GST_DEBUG ("viv direct bind, tex_id %d, fmt: %d, res: (%dx%d)", data->tex_id,
       data->fmt, data->w, data->h);
@@ -211,7 +212,7 @@ _directviv_video_format_to_gl_format (GstVideoFormat format)
 }
 
 static void
-gst_gl_phy_mem_destroy (GstMemory * mem)
+gst_gl_phy_mem_destroy (void * mem)
 {
   gst_memory_unref (mem);
 }
