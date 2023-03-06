@@ -205,6 +205,7 @@ play_new (gchar ** uris, const gchar * audio_sink, const gchar * video_sink,
     else
       g_warning ("Couldn't create specified audio sink '%s'", audio_sink);
   }
+
   if (video_sink != NULL) {
     if (strchr (video_sink, ' ') != NULL)
       sink = gst_parse_bin_from_description (video_sink, TRUE, NULL);
@@ -1673,6 +1674,12 @@ main (int argc, char **argv)
     g_free (playlist_file);
     playlist_file = NULL;
   }
+
+  if (audio_sink == NULL)
+    audio_sink = g_strdup(DEFAULT_AUDIOSINK);
+
+  if (video_sink == NULL)
+    video_sink = g_strdup(DEFAULT_VIDEOSINK);
 
   if (playlist->len == 0 && (filenames == NULL || *filenames == NULL)) {
     gst_printerr (_("Usage: %s FILE1|URI1 [FILE2|URI2] [FILE3|URI3] ..."),

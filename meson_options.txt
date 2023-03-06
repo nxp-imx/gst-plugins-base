@@ -21,6 +21,11 @@ option('opengl_module_name', type : 'string', value : '',
 option('gles2_module_name', type : 'string', value : '',
        description : 'The file to pass to g_module_open to open the libGLESv2 library (default: libGLESv2)')
 
+option('defaultaudiosink', type : 'string', value : 'autoaudiosink',
+       description : 'The default audiosink')
+option('defaultvideosink', type : 'string', value : 'autovideosink',
+       description : 'The default videosink')
+
 # Feature option for opengl plugin and integration library
 option('gl', type : 'feature', value : 'auto', description : 'OpenGL integration library and OpenGL plugin')
 option('gl-graphene', type : 'feature', value : 'auto', description : 'Use Graphene in OpenGL plugin')
