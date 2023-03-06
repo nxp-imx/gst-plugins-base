@@ -1877,10 +1877,6 @@ _directviv_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
 #if GST_GL_HAVE_PHYMEM
   GstVideoInfo *in_info = &directviv->upload->priv->in_info;
-  GstVideoFormat fmt =
-      GST_VIDEO_INFO_FORMAT (&directviv->upload->priv->out_info);
-  if (fmt != GST_VIDEO_FORMAT_RGBA)
-    return FALSE;
 
   if (n_mem != 1 || !mem || !gst_is_phys_memory (mem)) {
     GstVideoFrame frame1, frame2;
@@ -1957,9 +1953,6 @@ _directviv_upload_propose_allocation (gpointer impl, GstQuery * decide_query,
   GstCapsFeatures *caps_features;
 
   fmt = GST_VIDEO_INFO_FORMAT (&directviv->upload->priv->out_info);
-
-  if (fmt != GST_VIDEO_FORMAT_RGBA)
-    return;
 
   /* physical memory buffer pool was only proposed
    * when ion is not available to avoid allocator
