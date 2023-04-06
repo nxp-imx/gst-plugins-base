@@ -1242,12 +1242,10 @@ gst_decodebin_input_unblock_streams (DecodebinInput * input,
       input_stream->buffer_probe_id = 0;
     }
 
-    if (input_stream->saw_eos) {
-      GST_DEBUG_OBJECT (dbin, "Removing EOS'd stream");
-      remove_input_stream (dbin, input_stream);
-      tmp = dbin->input_streams;
-    } else
-      tmp = next;
+    /* For some streams whose duration is small, should not remove
+     * input stream if it's EOS, otherwise it can't guarantee that decodebin3
+     * can send out eos event successfully in multiqueue_src_probe function */
+    tmp = next;
   }
 
   /* Weed out unused multiqueue slots */
