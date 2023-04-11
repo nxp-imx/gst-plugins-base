@@ -3096,6 +3096,9 @@ gst_video_decoder_prepare_finish_frame (GstVideoDecoder *
         GST_TIME_ARGS (frame->pts));
   }
 
+  if (GST_CLOCK_TIME_IS_VALID (frame->pts) && frame->pts > min_pts)
+    priv->reordered_output = TRUE;
+
   /* if we detected reordered output, then PTS are void, however those were
    * obtained; bogus input, subclass etc */
   if (priv->reordered_output && !frames_without_pts) {
@@ -3142,7 +3145,6 @@ gst_video_decoder_prepare_finish_frame (GstVideoDecoder *
     GST_WARNING_OBJECT (decoder,
         "decreasing timestamp (%" GST_TIME_FORMAT " < %" GST_TIME_FORMAT ")",
         GST_TIME_ARGS (frame->pts), GST_TIME_ARGS (priv->last_timestamp_out));
-    priv->reordered_output = TRUE;
     /* make it a bit less weird downstream */
     frame->pts = priv->last_timestamp_out;
   }
