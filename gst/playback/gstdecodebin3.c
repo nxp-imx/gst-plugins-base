@@ -1302,7 +1302,7 @@ gst_decodebin3_update_min_interleave (GstDecodebin3 * dbin)
     return;
 
   /* Make sure we keep an extra overhead */
-  max_latency += 100 * GST_MSECOND;
+  max_latency += 5 * GST_SECOND;
   if (max_latency == dbin->current_mq_min_interleave)
     return;
 
