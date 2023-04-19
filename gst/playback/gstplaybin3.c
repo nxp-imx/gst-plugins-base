@@ -227,6 +227,7 @@
 #include "gstplaysink.h"
 #include "gstsubtitleoverlay.h"
 #include "gstplaybackutils.h"
+#include "gstrawcaps.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_play_bin3_debug);
 #define GST_CAT_DEFAULT gst_play_bin3_debug
@@ -275,6 +276,12 @@ enum
   PLAYBIN_STREAM_TEXT,
   PLAYBIN_STREAM_LAST
 };
+
+static GstStaticCaps default_raw_caps = GST_STATIC_CAPS (DEFAULT_RAW_CAPS);
+#define DEFAULT_CAPS (gst_static_caps_get (&default_raw_caps))
+
+static GstStaticCaps raw_and_passthrough_caps = GST_STATIC_CAPS (RAW_AND_PASSTHROUGH_CAPS);
+#define SELECT_CAPS (gst_static_caps_get (&raw_and_passthrough_caps))
 
 /* names matching the enum above */
 static const gchar *stream_type_names[] = {
@@ -506,6 +513,7 @@ static void gst_play_bin3_navigation_init (gpointer g_iface,
     gpointer g_iface_data);
 static void gst_play_bin3_colorbalance_init (gpointer g_iface,
     gpointer g_iface_data);
+static void reconfigure_caps (GstPlayBin3 * playbin);
 
 static void
 _do_init_type (GType type)
@@ -1455,6 +1463,7 @@ gst_play_bin3_set_property (GObject * object, guint prop_id,
     case PROP_AUDIO_SINK:
       gst_play_bin3_set_sink (playbin, GST_PLAY_SINK_TYPE_AUDIO, "audio",
           &playbin->audio_sink, g_value_get_object (value));
+      reconfigure_caps (playbin);
       break;
     case PROP_VIS_PLUGIN:
       gst_play_sink_set_vis_plugin (playbin->playsink,
@@ -2534,6 +2543,85 @@ select_stream_cb (GstElement * decodebin, GstStreamCollection * collection,
   return -1;
 }
 
+static void
+reconfigure_caps (GstPlayBin3 * playbin)
+{
+  GstElement *actual_sink = NULL;
+  GstPad *sinkpad = NULL;
+  GstCaps *sinkcaps = NULL;
+  GstCaps *select_caps = NULL;
+  GstCaps *currentcaps = NULL;
+
+  if (NULL == playbin->audio_sink) {
+    GST_LOG_OBJECT (playbin, "No audio sink found");
+    return;
+  }
+
+  /* check the sink type */
+  if (!GST_IS_BIN ((GstBin*) playbin->audio_sink)) {
+    actual_sink = playbin->audio_sink;
+  } else {
+    GstIterator *it;
+    GValue item = { 0, };
+    GstIteratorResult rc;
+
+    it = gst_bin_iterate_sinks ((GstBin *) playbin->audio_sink);
+    do {
+      rc = gst_iterator_next (it, &item);
+      if (rc == GST_ITERATOR_OK) {
+        break;
+      }
+    } while (rc != GST_ITERATOR_DONE);
+
+    actual_sink = g_value_get_object (&item);
+    g_value_unset (&item);
+    gst_iterator_free (it);
+  }
+
+  if (NULL == actual_sink) {
+    GST_LOG_OBJECT (playbin, "No sink found");
+    return;
+  }
+
+  sinkpad = gst_element_get_static_pad (actual_sink, "sink");
+  if (NULL == sinkpad) {
+    GST_LOG_OBJECT (playbin, "No pad found");
+    return;
+  }
+
+  sinkcaps = gst_pad_query_caps (sinkpad, NULL);
+  if (NULL == sinkcaps) {
+    GST_LOG_OBJECT (playbin, "No caps found");
+    return;
+  }
+
+  GST_DEBUG_OBJECT (playbin, "sink caps: %s ", gst_caps_to_string(sinkcaps));
+  /* analyze the caps and update uridecodebin caps if needed */
+  if (!gst_caps_is_any (sinkcaps)) {
+    select_caps = gst_caps_from_string (AUDIO_PASSTHROUGH_CAPS);
+
+    if (gst_caps_is_subset (select_caps, sinkcaps)) {
+      /* got the selected caps, update it */
+      g_object_set (playbin->uridecodebin, "caps",
+          SELECT_CAPS, NULL);
+      GST_LOG_OBJECT (playbin, "update and add the selected caps");
+    } else {
+      g_object_get (playbin->uridecodebin, "caps", &currentcaps, NULL);
+      if (gst_caps_is_subset (select_caps, currentcaps)) {
+        /* restore the default caps if it has select caps */
+        g_object_set (playbin->uridecodebin, "caps",
+          DEFAULT_CAPS, NULL);
+        GST_LOG_OBJECT (playbin, "update to the default caps");
+      }
+      gst_caps_unref (currentcaps);
+    }
+    gst_caps_unref (select_caps);
+  }
+
+  gst_caps_unref (sinkcaps);
+  gst_object_unref (sinkpad);
+}
+
 /* We get called when the selected stream types change and
  * reconfiguration of output (i.e. playsink and potential combiners)
  * are required.
@@ -2631,6 +2719,11 @@ reconfigure_output (GstPlayBin3 * playbin)
           }
 
         }
+      }
+
+      /* update caps for audio passthrough */
+      if (combine->stream_type == GST_STREAM_TYPE_AUDIO) {
+        reconfigure_caps (playbin);
       }
     }
   }
