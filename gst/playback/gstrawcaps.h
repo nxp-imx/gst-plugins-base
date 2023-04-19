@@ -37,6 +37,32 @@ G_BEGIN_DECLS
     "closedcaption/x-cea-708; " \
     "application/x-onvif-metadata; "
 
+#define AUDIO_PASSTHROUGH_CAPS \
+    "audio/x-ac3, framed = (boolean) true;" \
+    "audio/x-eac3, framed = (boolean) true, alignment = (string) iec61937; "\
+    "audio/x-dts, framed = (boolean) true, " \
+      "block-size = (int) { 512, 1024, 2048 }; " \
+    "audio/mpeg, mpegversion = (int) 1, " \
+      "mpegaudioversion = (int) [ 1, 3 ], parsed = (boolean) true;"
+
+#define RAW_AND_PASSTHROUGH_CAPS \
+        "audio/x-ac3, framed = (boolean) true;" \
+        "audio/x-eac3, framed = (boolean) true, alignment = (string) iec61937; "\
+        "audio/x-dts, framed = (boolean) true, " \
+          "block-size = (int) { 512, 1024, 2048 }; " \
+        "audio/mpeg, mpegversion = (int) 1, " \
+          "mpegaudioversion = (int) [ 1, 3 ], parsed = (boolean) true; "\
+        "video/x-raw(ANY); " \
+        "audio/x-raw(ANY); " \
+        "text/x-raw(ANY); " \
+        "subpicture/x-dvd; " \
+        "subpicture/x-dvb; " \
+        "subpicture/x-xsub; " \
+        "subpicture/x-pgs; " \
+        "closedcaption/x-cea-608; " \
+        "closedcaption/x-cea-708; " \
+        "application/x-onvif-metadata; "
+
 G_END_DECLS
 
 #endif /* __GST_RAW_CAPS__ */
