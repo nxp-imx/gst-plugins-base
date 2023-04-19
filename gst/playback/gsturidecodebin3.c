@@ -1625,6 +1625,8 @@ gst_uri_decode_bin3_set_property (GObject * object, guint prop_id,
         gst_caps_unref (dec->caps);
       dec->caps = g_value_dup_boxed (value);
       GST_OBJECT_UNLOCK (dec);
+      /* need update caps because playsink may have some caps which is not in the raw caps list */
+      g_object_set (dec->decodebin, "caps", dec->caps, NULL);
       break;
     case PROP_INSTANT_URI:
       GST_OBJECT_LOCK (dec);
