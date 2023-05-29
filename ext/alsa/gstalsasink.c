@@ -124,6 +124,12 @@ static GstStaticPadTemplate alsasink_sink_factory =
         PASSTHROUGH_CAPS)
     );
 
+static GstStaticCaps alsasink_default_raw_caps =
+GST_STATIC_CAPS ("audio/x-raw, "
+        "format = (string) " GST_AUDIO_FORMATS_ALL ", "
+        "layout = (string) interleaved, "
+        "rate = (int) [ 1, MAX ], " "channels = (int) [ 1, MAX ];");
+
 static void
 gst_alsasink_finalise (GObject * object)
 {
@@ -308,8 +314,13 @@ gst_alsasink_getcaps (GstBaseSink * bsink, GstCaps * filter)
   GST_OBJECT_LOCK (sink);
   if (sink->handle == NULL) {
     GST_OBJECT_UNLOCK (sink);
-    GST_DEBUG_OBJECT (sink, "device not open, using template caps");
-    return NULL;                /* base class will get template caps for us */
+    if (TRUE == sink->passthrough) {
+      GST_DEBUG_OBJECT (sink, "device not open, using template caps");
+      return NULL;                /* base class will get template caps for us */
+    } else {
+      /* should not include passthrough caps if passthrough function is not enabled */
+      return gst_static_caps_get (&alsasink_default_raw_caps);
+    }
   }
 
   if (sink->cached_caps) {
