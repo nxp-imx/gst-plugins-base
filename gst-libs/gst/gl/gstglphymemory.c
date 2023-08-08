@@ -337,7 +337,7 @@ gst_gl_physical_memory_setup_buffer (GstAllocator * allocator,
     GST_VIDEO_INFO_HEIGHT (info),
     viv_fmt,
     memblk->vaddr,
-    memblk->paddr,
+    (guint)memblk->paddr,
     FALSE
   };
 

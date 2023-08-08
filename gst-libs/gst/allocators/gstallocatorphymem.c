@@ -225,7 +225,7 @@ static guintptr
 gst_allocator_phymem_get_phys_addr (GstPhysMemoryAllocator * allocator,
     GstMemory * mem)
 {
-  return gst_phymem_get_phy (mem);
+  return (guintptr)gst_phymem_get_phy (mem);
 }
 
 static void
