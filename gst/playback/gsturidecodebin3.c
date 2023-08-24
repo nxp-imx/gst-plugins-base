@@ -1549,6 +1549,9 @@ new_source_handler (GstURIDecodeBin3 * uridecodebin, GstPlayItem * item,
       "ring-buffer-max-size", uridecodebin->ring_buffer_max_size,
       "parse-streams", TRUE, NULL);
 
+  g_object_set (handler->urisourcebin, "caps",
+        uridecodebin->caps, NULL);
+
   handler->pad_added_id =
       g_signal_connect (handler->urisourcebin, "pad-added",
       (GCallback) src_pad_added_cb, handler);
@@ -1617,6 +1620,19 @@ gst_uri_decode_bin3_set_connection_speed (GstURIDecodeBin3 * dec)
 }
 
 static void
+gst_uri_decode_bin3_set_urisourcebin_caps (GstURIDecodeBin3 * dec)
+{
+  GList *walk;
+
+  /* set the property on all decodebins now */
+  for (walk = dec->source_handlers; walk; walk = g_list_next (walk)) {
+    GstSourceHandler *handler = (GstSourceHandler *) (walk->data);
+    g_object_set (handler->urisourcebin, "caps",
+        dec->caps, NULL);
+  }
+}
+
+static void
 gst_uri_decode_bin3_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
@@ -1660,6 +1676,7 @@ gst_uri_decode_bin3_set_property (GObject * object, guint prop_id,
       dec->caps = g_value_dup_boxed (value);
       GST_OBJECT_UNLOCK (dec);
       /* need update caps because playsink may have some caps which is not in the raw caps list */
+      gst_uri_decode_bin3_set_urisourcebin_caps (dec);
       g_object_set (dec->decodebin, "caps", dec->caps, NULL);
       break;
     case PROP_INSTANT_URI:
