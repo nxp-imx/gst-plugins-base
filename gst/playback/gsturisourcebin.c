@@ -200,6 +200,7 @@ struct _GstURISourceBin
 
   /* Current output collection (if provided by internal elements) */
   GstStreamCollection *collection;
+  GstCaps *caps;
 };
 
 struct _GstURISourceBinClass
@@ -269,6 +270,7 @@ enum
   PROP_HIGH_WATERMARK,
   PROP_STATISTICS,
   PROP_PARSE_STREAMS,
+  PROP_CAPS,
 };
 
 #define CUSTOM_EOS_QUARK _custom_eos_quark_get ()
@@ -480,6 +482,11 @@ gst_uri_source_bin_class_init (GstURISourceBinClass * klass)
           "Extract the elementary streams of non-raw sources",
           DEFAULT_PARSE_STREAMS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_CAPS,
+      g_param_spec_boxed ("caps", "Caps",
+          "The caps on which to support audio passthrough. (NULL = default)",
+          GST_TYPE_CAPS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   /**
    * GstURISourceBin::drained:
    *
@@ -554,6 +561,7 @@ gst_uri_source_bin_init (GstURISourceBin * urisrc)
   urisrc->last_buffering_pct = -1;
   urisrc->low_watermark = DEFAULT_LOW_WATERMARK;
   urisrc->high_watermark = DEFAULT_HIGH_WATERMARK;
+  urisrc->caps = DEFAULT_CAPS;
 
   GST_OBJECT_FLAG_SET (urisrc,
       GST_ELEMENT_FLAG_SOURCE | GST_BIN_FLAG_STREAMS_AWARE);
@@ -652,6 +660,11 @@ gst_uri_source_bin_set_property (GObject * object, guint prop_id,
     case PROP_PARSE_STREAMS:
       urisrc->parse_streams = g_value_get_boolean (value);
       break;
+    case PROP_CAPS:
+      if (urisrc->caps)
+        gst_caps_unref (urisrc->caps);
+      urisrc->caps = g_value_dup_boxed (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -713,6 +726,9 @@ gst_uri_source_bin_get_property (GObject * object, guint prop_id,
       break;
     case PROP_PARSE_STREAMS:
       g_value_set_boolean (value, urisrc->parse_streams);
+      break;
+    case PROP_CAPS:
+      g_value_set_boxed (value, urisrc->caps);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1618,6 +1634,51 @@ demuxer_pad_removed_cb (GstElement * element, GstPad * pad,
   return;
 }
 
+static gboolean
+autoplug_query_caps (GstElement * parsebin, GstPad * pad,
+    GstElement * element, GstQuery * query, ChildSrcPadInfo * info)
+{
+  GstURISourceBin *urisrc = info->urisrc;
+
+  GST_DEBUG_OBJECT (parsebin, "query %" GST_PTR_FORMAT, query);
+
+  /* This function is called whenever an autoplugged element that is
+   * not linked downstream yet and not exposed does a query. It can
+   * be used to tell the element about the downstream supported caps */
+  GstCaps *select_caps = gst_caps_from_string (AUDIO_PASSTHROUGH_CAPS);
+  if (gst_caps_is_subset (select_caps, urisrc->caps)) {
+    GstCaps *filter;
+    gst_query_parse_caps (query, &filter);
+    if (filter) {
+      if (gst_caps_can_intersect (filter, urisrc->caps)) {
+        GstCaps *intersection;
+
+        intersection = gst_caps_intersect_full (filter, urisrc->caps,
+            GST_CAPS_INTERSECT_FIRST);
+        gst_query_set_caps_result (query, intersection);
+        GST_DEBUG_OBJECT (parsebin, "query result %" GST_PTR_FORMAT, query);
+        gst_caps_unref (intersection);
+        gst_caps_unref (select_caps);
+        return TRUE;
+      }
+    }
+  }
+  gst_caps_unref (select_caps);
+  return FALSE;
+}
+
+static gboolean
+demuxer_pad_autoplug_query_cb (GstElement * parsebin, GstPad * pad,
+    GstElement * element, GstQuery * query, ChildSrcPadInfo * info)
+{
+  switch (GST_QUERY_TYPE (query)) {
+    case GST_QUERY_CAPS:
+      return autoplug_query_caps (parsebin, pad, element, query, info);
+    default:
+      return FALSE;
+  }
+}
+
 /* helper function to lookup stuff in lists */
 static gboolean
 array_has_value (const gchar * values[], const gchar * value)
@@ -2162,6 +2223,9 @@ setup_parsebin_for_slot (ChildSrcPadInfo * info, GstPad * originating_pad)
       "pad-added", G_CALLBACK (new_demuxer_pad_added_cb), info);
   g_signal_connect (info->demuxer,
       "pad-removed", G_CALLBACK (demuxer_pad_removed_cb), info);
+
+  g_signal_connect (info->demuxer,
+      "autoplug-query", G_CALLBACK (demuxer_pad_autoplug_query_cb), info);
 
   if (info->pre_parse_queue) {
     gst_element_sync_state_with_parent (info->pre_parse_queue);
