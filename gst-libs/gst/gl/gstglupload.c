@@ -79,7 +79,11 @@
 #define USING_GLES2(context) (gst_gl_context_check_gl_version (context, GST_GL_API_GLES2, 2, 0))
 #define USING_GLES3(context) (gst_gl_context_check_gl_version (context, GST_GL_API_GLES2, 3, 0))
 
+#if GST_GL_HAVE_VIV_DIRECTVIV
 #define DEFAULT_ALIGN 16
+#else
+#define DEFAULT_ALIGN 32
+#endif
 
 GST_DEBUG_CATEGORY_STATIC (gst_gl_upload_debug);
 #define GST_CAT_DEFAULT gst_gl_upload_debug
