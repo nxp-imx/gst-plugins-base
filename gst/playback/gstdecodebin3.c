@@ -3888,6 +3888,37 @@ db_output_stream_expose_src_pad (DecodebinOutputStream * output)
   gst_element_add_pad (GST_ELEMENT_CAST (slot->dbin), output->src_pad);
 }
 
+typedef struct
+{
+  gboolean ret;
+  GstPad *peer;
+} SendStickyEventsData;
+
+static gboolean
+send_sticky_event (GstPad * pad, GstEvent ** event, gpointer user_data)
+{
+  SendStickyEventsData *data = user_data;
+
+  data->ret &= gst_pad_send_event (data->peer, gst_event_ref (*event));
+
+  return data->ret;
+}
+
+static gboolean
+send_sticky_events (GstDecodebin3 * dbin, GstPad * pad)
+{
+  SendStickyEventsData data;
+
+  data.ret = TRUE;
+  data.peer = gst_pad_get_peer (pad);
+
+  gst_pad_sticky_events_foreach (pad, send_sticky_event, &data);
+
+  gst_object_unref (data.peer);
+
+  return data.ret;
+}
+
 static CandidateDecoder *
 add_candidate_decoder (GstDecodebin3 * dbin, GstElement * element)
 {
@@ -3993,19 +4024,28 @@ db_output_stream_setup_decoder (DecodebinOutputStream * output,
       goto try_next;
     }
 
+    /* First lock element's sinkpad stream lock so no data reaches
+       * the possible new element added when caps are sent by element
+       * while we're still sending sticky events */
+    GST_PAD_STREAM_LOCK (output->decoder_sink);
+
     if (gst_element_set_state (output->decoder, GST_STATE_PAUSED) ==
-        GST_STATE_CHANGE_FAILURE) {
+        GST_STATE_CHANGE_FAILURE ||
+          !send_sticky_events (dbin, slot->src_pad)) {
+      GST_PAD_STREAM_UNLOCK (output->decoder_sink);
       GST_WARNING_OBJECT (dbin, "Decoder '%s' failed to reach PAUSED state",
           GST_ELEMENT_NAME (output->decoder));
       goto try_next;
     }
 
     /* Everything went well, we have a decoder */
+    GST_PAD_STREAM_UNLOCK (output->decoder_sink);
     GST_DEBUG ("created decoder %" GST_PTR_FORMAT, output->decoder);
 
     handle_stored_latency_message (dbin, output, candidate);
     remove_candidate_decoder (dbin, candidate);
     break;
+
 
   try_next:{
       db_output_stream_reset (output);
