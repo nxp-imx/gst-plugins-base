@@ -1932,7 +1932,7 @@ _dma_buf_upload_free (gpointer impl)
 
 static const UploadMethod _dma_buf_upload = {
   "Dmabuf",
-  0,
+  METHOD_FLAG_CAN_ACCEPT_RAW,
   &_dma_buf_upload_caps,
   &_dma_buf_upload_new,
   &_dma_buf_upload_transform_caps,
@@ -2077,7 +2077,7 @@ _direct_dma_buf_upload_transform_caps (gpointer impl, GstGLContext * context,
 
 static const UploadMethod _direct_dma_buf_upload = {
   "DirectDmabuf",
-  0,
+  METHOD_FLAG_CAN_ACCEPT_RAW,
   &_dma_buf_upload_caps,
   &_direct_dma_buf_upload_new,
   &_direct_dma_buf_upload_transform_caps,
@@ -2099,7 +2099,7 @@ _direct_dma_buf_external_upload_new (GstGLUpload * upload)
 
 static const UploadMethod _direct_dma_buf_external_upload = {
   "DirectDmabufExternal",
-  0,
+  METHOD_FLAG_CAN_ACCEPT_RAW,
   &_dma_buf_upload_caps,
   &_direct_dma_buf_external_upload_new,
   &_direct_dma_buf_upload_transform_caps,
@@ -3819,8 +3819,22 @@ gst_gl_upload_transform_caps (GstGLUpload * upload, GstGLContext * context,
         GstCapsFeatures *passthrough =
             gst_caps_features_from_string
             (GST_CAPS_FEATURE_META_GST_VIDEO_OVERLAY_COMPOSITION);
-        GstCaps *raw_tmp = _set_caps_features_with_passthrough (tmp,
+        GstCaps *raw_tmp = _set_caps_features_with_passthrough (caps,
             GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY, passthrough);
+
+        /* Add formats supported by #GstGLMemory to raw caps */
+        for (i = 0; i < gst_caps_get_size (raw_tmp); i++) {
+          GstStructure *s = gst_caps_get_structure (raw_tmp, i);
+          GValue formats = G_VALUE_INIT;
+
+          g_value_init (&formats, GST_TYPE_LIST);
+          gst_value_deserialize (&formats, GST_GL_MEMORY_VIDEO_FORMATS_STR);
+          gst_structure_take_value (s, "format", &formats);
+
+          gst_structure_remove_fields (s, "texture-target", NULL);
+          g_value_unset (&formats);
+        }
+
         gst_caps_append (tmp, raw_tmp);
         gst_caps_features_free (passthrough);
       }
