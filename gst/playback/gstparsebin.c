@@ -1939,7 +1939,10 @@ connect_pad (GstParseBin * parsebin, GstElement * src, GstParsePad * parsepad,
       case GST_AUTOPLUG_SELECT_EXPOSE:
         GST_DEBUG_OBJECT (parsebin, "autoplug select requested expose");
         /* expose the pad, we don't have the source element */
-        expose_pad (parsebin, src, parsepad, pad, caps, chain);
+        if (!parsepad->exposed)
+          expose_pad (parsebin, src, parsepad, pad, caps, chain);
+        else
+          GST_DEBUG_OBJECT (parsebin, "pad is already exposed, skip");
         res = TRUE;
         goto beach;
       case GST_AUTOPLUG_SELECT_SKIP:
