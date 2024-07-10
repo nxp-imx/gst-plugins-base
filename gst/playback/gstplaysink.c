@@ -4739,8 +4739,6 @@ gst_play_sink_release_pad (GstPlaySink * playsink, GstPad * pad)
     untarget = FALSE;
   }
 
-  GST_PLAY_SINK_UNLOCK (playsink);
-
   if (*res) {
     GST_DEBUG_OBJECT (playsink, "deactivate pad %" GST_PTR_FORMAT, *res);
     gst_pad_set_active (*res, FALSE);
@@ -4752,8 +4750,6 @@ gst_play_sink_release_pad (GstPlaySink * playsink, GstPad * pad)
     gst_element_remove_pad (GST_ELEMENT_CAST (playsink), *res);
     *res = NULL;
   }
-
-  GST_PLAY_SINK_LOCK (playsink);
 
   /* If we have a pending reconfigure, we might have met the conditions
    * to reconfigure now */
