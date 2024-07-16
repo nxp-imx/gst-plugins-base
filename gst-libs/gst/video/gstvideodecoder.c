@@ -3071,11 +3071,13 @@ gst_video_decoder_prepare_finish_frame (GstVideoDecoder *
     }
   }
   /* save dts if needed */
-  if (earliest_dts_frame && earliest_dts_frame != frame) {
+  if (earliest_dts_frame && earliest_dts_frame != frame
+      && GST_CLOCK_TIME_IS_VALID (frame->abidata.ABI.ts)) {
     earliest_dts_frame->abidata.ABI.ts = frame->abidata.ABI.ts;
   }
   /* save pts if needed */
-  if (earliest_pts_frame && earliest_pts_frame != frame) {
+  if (earliest_pts_frame && earliest_pts_frame != frame
+      && GST_CLOCK_TIME_IS_VALID (frame->abidata.ABI.ts2)) {
     earliest_pts_frame->abidata.ABI.ts2 = frame->abidata.ABI.ts2;
   }
 
