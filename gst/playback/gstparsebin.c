@@ -2477,16 +2477,19 @@ pad_event_cb (GstPad * pad, GstPadProbeInfo * info, gpointer data)
 {
   GstEvent *event = GST_PAD_PROBE_INFO_EVENT (info);
   GstPendingPad *ppad = (GstPendingPad *) data;
-  GstParseChain *chain = ppad->chain;
-  GstParseBin *parsebin = chain->parsebin;
 
-  g_assert (ppad);
-  g_assert (chain);
-  g_assert (parsebin);
   switch (GST_EVENT_TYPE (event)) {
     case GST_EVENT_EOS:
       GST_DEBUG_OBJECT (pad, "Received EOS on a non final pad, this stream "
           "ended too early");
+
+      GstParseChain *chain = ppad->chain;
+      GstParseBin *parsebin = chain->parsebin;
+
+      g_assert (ppad);
+      g_assert (chain);
+      g_assert (parsebin);
+
       chain->deadend = TRUE;
       chain->drained = TRUE;
       gst_object_replace ((GstObject **) & chain->current_pad, NULL);
