@@ -2172,6 +2172,21 @@ connect_pad (GstParseBin * parsebin, GstElement * src, GstParsePad * parsepad,
      * while we're still sending sticky events */
     GST_PAD_STREAM_LOCK (sinkpad);
 
+    if (is_parser_converter) {
+      EXPOSE_LOCK (parsebin);
+      if (parsebin->parse_chain) {
+        if (gst_parse_chain_is_complete (parsebin->parse_chain)) {
+          GST_LOG_OBJECT (parsebin,
+              "That was the last dynamic object, now attempting to expose the group");
+          if (!gst_parse_bin_expose (parsebin))
+            GST_WARNING_OBJECT (parsebin, "Couldn't expose group");
+        }
+      } else {
+        GST_DEBUG_OBJECT (parsebin, "No parse chain, new pad ignored");
+      }
+      EXPOSE_UNLOCK (parsebin);
+    }
+
     if ((gst_element_set_state (element,
                 GST_STATE_PAUSED)) == GST_STATE_CHANGE_FAILURE ||
         !send_sticky_events (parsebin, pad)) {
@@ -2526,19 +2541,6 @@ pad_added_cb (GstElement * element, GstPad * pad, GstParseChain * chain)
   analyze_new_pad (parsebin, element, pad, caps, chain);
   if (caps)
     gst_caps_unref (caps);
-
-  EXPOSE_LOCK (parsebin);
-  if (parsebin->parse_chain) {
-    if (gst_parse_chain_is_complete (parsebin->parse_chain)) {
-      GST_LOG_OBJECT (parsebin,
-          "That was the last dynamic object, now attempting to expose the group");
-      if (!gst_parse_bin_expose (parsebin))
-        GST_WARNING_OBJECT (parsebin, "Couldn't expose group");
-    }
-  } else {
-    GST_DEBUG_OBJECT (parsebin, "No parse chain, new pad ignored");
-  }
-  EXPOSE_UNLOCK (parsebin);
 }
 
 static void
