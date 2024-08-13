@@ -1548,10 +1548,17 @@ update_output_format (GstGLImageSink * glimage_sink)
   GstVideoMultiviewMode mv_mode;
   GstGLWindow *window = NULL;
   GstGLTextureTarget previous_target;
+  gint pre_width = 0, pre_height = 0;
+  gint cur_width = 0, cur_height = 0;
   GstStructure *s;
   const gchar *target_str;
   GstCaps *out_caps;
   gboolean ret;
+
+  pre_width = GST_VIDEO_INFO_WIDTH (out_info);
+  pre_height = GST_VIDEO_INFO_HEIGHT (out_info);
+  cur_width = GST_VIDEO_INFO_WIDTH (&glimage_sink->in_info);
+  cur_height = GST_VIDEO_INFO_HEIGHT (&glimage_sink->in_info);
 
   *out_info = glimage_sink->in_info;
   previous_target = glimage_sink->texture_target;
@@ -1646,8 +1653,10 @@ update_output_format (GstGLImageSink * glimage_sink)
     gst_caps_unref (glimage_sink->out_caps);
   glimage_sink->out_caps = out_caps;
 
-  if (previous_target != GST_GL_TEXTURE_TARGET_NONE &&
-      glimage_sink->texture_target != previous_target) {
+  if ((previous_target != GST_GL_TEXTURE_TARGET_NONE &&
+      glimage_sink->texture_target != previous_target) ||
+      (pre_width != 0 && pre_width != cur_width) ||
+      (pre_height != 0 && pre_height != cur_height)) {
     /* regenerate the shader for the changed target */
     GstGLWindow *window = gst_gl_context_get_window (glimage_sink->context);
     gst_gl_window_send_message (window,
