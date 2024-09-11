@@ -248,9 +248,27 @@ gst_gl_memory_dma_buffer_to_gstbuffer (GstGLContext * ctx, GstVideoInfo * info,
 {
   GstBuffer *buf;
   GstGLMemoryDMA *glmem;
+  GstVideoMeta *vmeta;
+  GstVideoMeta *ometa;
+  guint width = 0, height = 0;
+  const gsize *offsets = NULL;
+  const gint *strides = NULL;
 
   gst_gl_context_thread_add (ctx, (GstGLContextThreadFunc) _finish_texture,
       NULL);
+
+  vmeta = gst_buffer_get_video_meta (glbuf);
+  if (vmeta) {
+    width = vmeta->width;
+    height = vmeta->height;
+    offsets = vmeta->offset;
+    strides = vmeta->stride;
+  } else {
+    width = GST_VIDEO_INFO_WIDTH (info);
+    height = GST_VIDEO_INFO_HEIGHT (info);
+    offsets = info->offset;
+    strides = info->stride;
+  }
 
   glmem = (GstGLMemoryDMA *) gst_buffer_peek_memory (glbuf, 0);
 
@@ -258,9 +276,10 @@ gst_gl_memory_dma_buffer_to_gstbuffer (GstGLContext * ctx, GstVideoInfo * info,
   gst_buffer_append_memory (buf, (GstMemory *) glmem->dma);
   gst_memory_ref ((GstMemory *) glmem->dma);
 
-  gst_buffer_add_video_meta_full (buf, 0,
-      GST_VIDEO_INFO_FORMAT (info), GST_VIDEO_INFO_WIDTH (info),
-      GST_VIDEO_INFO_HEIGHT (info), 1, info->offset, info->stride);
+  ometa = gst_buffer_add_video_meta_full (buf, 0,
+      GST_VIDEO_INFO_FORMAT (info), width, height, 1, offsets, strides);
+  if (vmeta)
+    gst_video_meta_set_alignment (ometa, vmeta->alignment);
   GST_BUFFER_FLAGS (buf) = GST_BUFFER_FLAGS (glbuf);
   GST_BUFFER_PTS (buf) = GST_BUFFER_PTS (glbuf);
   GST_BUFFER_DTS (buf) = GST_BUFFER_DTS (glbuf);
