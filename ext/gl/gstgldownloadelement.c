@@ -830,6 +830,12 @@ static void gst_gl_download_element_finalize (GObject * object);
 #define EXTRA_CAPS_TEMPLATE2
 #endif
 
+#if GST_GL_HAVE_VIV_DIRECTVIV
+#define DEFAULT_ALIGN 16
+#else
+#define DEFAULT_ALIGN 32
+#endif
+
 static GstStaticPadTemplate gst_gl_download_element_src_pad_template =
     GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
@@ -1583,6 +1589,7 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   GstVideoInfo info;
   gsize size;
   GstVideoFormat fmt;
+  gboolean need_alignment = FALSE;
 
   if (!GST_BASE_TRANSFORM_CLASS (parent_class)->propose_allocation (bt,
           decide_query, query))
@@ -1633,6 +1640,8 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
 #if GST_GL_HAVE_IONDMA || GST_GL_HAVE_DMABUFHEAPS
   if (!pool && (fmt == GST_VIDEO_FORMAT_RGBA || fmt == GST_VIDEO_FORMAT_RGB16)) {
     allocator = gst_gl_memory_dma_allocator_obtain ();
+    if (allocator)
+      need_alignment = TRUE;
     GST_DEBUG_OBJECT (bt, "obtain dma memory allocator %p.", allocator);
   }
 #endif
@@ -1658,6 +1667,25 @@ gst_gl_download_element_propose_allocation (GstBaseTransform * bt,
   gst_buffer_pool_config_set_gl_min_free_queue_size (config, 1);
   gst_buffer_pool_config_add_option (config,
     GST_BUFFER_POOL_OPTION_GL_SYNC_META);
+
+  if (need_alignment) {
+    guint width, height;
+    GstVideoAlignment alignment;
+    width = GST_VIDEO_INFO_WIDTH (&info);
+    height = GST_VIDEO_INFO_HEIGHT (&info);
+
+    // add alignment in config when using dma allocator
+    memset (&alignment, 0, sizeof (GstVideoAlignment));
+    alignment.padding_right = GST_ROUND_UP_N (width, DEFAULT_ALIGN) - width;
+    alignment.padding_bottom = GST_ROUND_UP_N (height, DEFAULT_ALIGN) - height;
+    gst_buffer_pool_config_add_option (config,
+        GST_BUFFER_POOL_OPTION_VIDEO_ALIGNMENT);
+    gst_buffer_pool_config_set_video_alignment (config, &alignment);
+
+    // add video meta option to get alignment from buffer.
+    gst_buffer_pool_config_add_option (config,
+        GST_BUFFER_POOL_OPTION_VIDEO_META);
+  }
 
   if (allocator) {
     gst_buffer_pool_config_set_allocator (config, allocator, NULL);
