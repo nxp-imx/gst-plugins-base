@@ -1735,8 +1735,55 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
   /* This will eliminate most non-dmabuf out there */
   if (!gst_is_dmabuf_memory (gst_buffer_peek_memory (buffer, 0))) {
-    GST_DEBUG_OBJECT (dmabuf->upload, "input not dmabuf");
-    return FALSE;
+    GstVideoFrame frame1, frame2;
+    GstVideoInfo map_in_info;
+
+    gst_video_info_from_caps (&map_in_info, in_caps);
+    gst_video_frame_map (&frame1, &map_in_info, buffer, GST_MAP_READ);
+
+    if (!dmabuf->pool) {
+      gboolean ret;
+      GstCaps *new_caps = gst_video_info_to_caps (&frame1.info);
+      gst_video_info_from_caps (in_info, new_caps);
+
+      ret =
+          _dma_buf_upload_setup_buffer_pool (&dmabuf->pool, NULL, new_caps,
+          in_info);
+      if (!ret) {
+        gst_video_frame_unmap (&frame1);
+        gst_caps_unref (new_caps);
+        GST_WARNING_OBJECT (dmabuf->upload, "no available buffer pool");
+        return FALSE;
+      }
+    }
+
+    if (!gst_buffer_pool_is_active (dmabuf->pool)
+        && gst_buffer_pool_set_active (dmabuf->pool, TRUE) != TRUE) {
+      gst_video_frame_unmap (&frame1);
+      GST_WARNING_OBJECT (dmabuf->upload, "buffer pool is not ok");
+      return FALSE;
+    }
+
+    if (dmabuf->inbuf)
+      gst_buffer_unref (dmabuf->inbuf);
+    dmabuf->inbuf = NULL;
+
+    gst_buffer_pool_acquire_buffer (dmabuf->pool, &dmabuf->inbuf, NULL);
+    if (!dmabuf->inbuf) {
+      gst_video_frame_unmap (&frame1);
+      GST_WARNING_OBJECT (dmabuf->upload, "acquire_buffer failed");
+      return FALSE;
+    }
+
+    GST_DEBUG_OBJECT (dmabuf->upload, "copy plane resolution (%d)x(%d)\n",
+        in_info->width, in_info->height);
+    gst_video_frame_map (&frame2, in_info, dmabuf->inbuf, GST_MAP_WRITE);
+    gst_video_frame_copy (&frame2, &frame1);
+    gst_video_frame_unmap (&frame1);
+    gst_video_frame_unmap (&frame2);
+
+    buffer = dmabuf->inbuf;
+    meta = gst_buffer_get_video_meta (buffer);
   }
 
   n_planes = GST_VIDEO_INFO_N_PLANES (in_info);
