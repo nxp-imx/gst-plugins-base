@@ -1606,8 +1606,10 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
   /* This will eliminate most non-dmabuf out there */
   if (!gst_is_dmabuf_memory (gst_buffer_peek_memory (buffer, 0))) {
     GstVideoFrame frame1, frame2;
+    GstVideoInfo map_in_info;
 
-    gst_video_frame_map (&frame1, in_info, buffer, GST_MAP_READ);
+    gst_video_info_from_caps (&map_in_info, in_caps);
+    gst_video_frame_map (&frame1, &map_in_info, buffer, GST_MAP_READ);
 
     if (!dmabuf->pool) {
       gboolean ret;
