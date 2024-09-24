@@ -338,10 +338,16 @@ gst_gl_overlay_compositor_element_callback (GstGLFilter * filter,
 {
   GstGLOverlayCompositorElement *self =
       GST_GL_OVERLAY_COMPOSITOR_ELEMENT (filter);
+  gfloat matrix[16] = {
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0,
+    0.0, 0.0, 0.0, 1.0,
+  };
 
   GST_LOG_OBJECT (self, "drawing overlays");
 
-  gst_gl_overlay_compositor_draw_overlays (self->overlay_compositor, NULL);
+  gst_gl_overlay_compositor_draw_overlays (self->overlay_compositor, matrix);
 
   return TRUE;
 }
