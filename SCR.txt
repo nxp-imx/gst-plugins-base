@@ -1,0 +1,8 @@
+Package:                     gst-plugins-base.git
+Version:                     1.28.1.imx
+Outgoing License:            LGPL-2.1
+License File:                LICENSE.txt
+Type of Content:             source
+Description and comments:    Open Source Multimedia Farmework
+Origin:                      NXP (LGPL-2.1)
+                             GStreamer (LGPL-2.1+) - https://gitlab.freedesktop.org/gstreamer/gstreamer/
