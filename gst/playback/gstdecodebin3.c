@@ -3356,7 +3356,7 @@ update_stream_presence (GstDecodebin3 * dbin, DecodebinCollection * collection)
     return;
   }
 
-  if (g_list_length (dbin->slots) !=
+  if (g_list_length (dbin->slots) == 1 || g_list_length (dbin->slots) !=
       gst_stream_collection_get_size (collection->collection)) {
     collection->all_streams_present = FALSE;
     return;
