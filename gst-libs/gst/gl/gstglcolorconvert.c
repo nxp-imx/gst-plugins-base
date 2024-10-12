@@ -31,6 +31,10 @@
 #include "gstglfuncs.h"
 #include "gstglsl_private.h"
 
+#if GST_GL_HAVE_DMABUFHEAPS
+#include <gst/gl/gstglmemorydma.h>
+#endif
+
 /**
  * SECTION:gstglcolorconvert
  * @title: GstGLColorConvert
@@ -3509,11 +3513,21 @@ _do_convert_one_view (GstGLContext * context, GstGLColorConvert * convert,
   gint i, j = 0;
   const gint in_plane_offset = view_num * c_info->in_n_textures;
   const gint out_plane_offset = view_num * c_info->out_n_textures;
+  gboolean can_copy = TRUE;
 
   out_width = GST_VIDEO_INFO_WIDTH (&convert->out_info);
   out_height = GST_VIDEO_INFO_HEIGHT (&convert->out_info);
   in_width = GST_VIDEO_INFO_WIDTH (&convert->in_info);
   in_height = GST_VIDEO_INFO_HEIGHT (&convert->in_info);
+
+#if GST_GL_HAVE_IONDMA || GST_GL_HAVE_DMABUFHEAPS
+  /* In GLES2 platform, out size and mem size may be different,
+   * causing memory copy after converting. For DMA memory, skip
+   * copying, because glCopyTexImage2D() cannot copy texture to dmabuf. */
+  can_copy = USING_GLES3 (context) ||
+      !gst_is_gl_memory_dma ((GstMemory *) gst_buffer_peek_memory (convert->outbuf,
+                                                                   out_plane_offset));
+#endif
 
   for (i = 0; i < c_info->in_n_textures; i++) {
     convert->priv->in_tex[i] =
@@ -3565,9 +3579,9 @@ _do_convert_one_view (GstGLContext * context, GstGLColorConvert * convert,
 
     if (out_tex->tex_format == GST_GL_LUMINANCE
         || out_tex->tex_format == GST_GL_LUMINANCE_ALPHA
-        || out_height != mem_height
+        || ((out_height != mem_height
         || (out_width != mem_width
-            && convert->out_info.finfo->format != GST_VIDEO_FORMAT_v210)) {
+            && convert->out_info.finfo->format != GST_VIDEO_FORMAT_v210)) && can_copy)) {
       /* Luminance formats are not color renderable */
       /* rendering to a framebuffer only renders the intersection of all
        * the attachments i.e. the smallest attachment size */
@@ -3639,9 +3653,9 @@ out:
 
     if (out_tex->tex_format == GST_GL_LUMINANCE
         || out_tex->tex_format == GST_GL_LUMINANCE_ALPHA
-        || out_height != mem_height
+        || ((out_height != mem_height
         || (out_width != mem_width
-            && convert->out_info.finfo->format != GST_VIDEO_FORMAT_v210)) {
+            && convert->out_info.finfo->format != GST_VIDEO_FORMAT_v210)) && can_copy)) {
       GstMapInfo to_info, from_info;
 
       if (!gst_memory_map ((GstMemory *) convert->priv->out_tex[j], &from_info,
