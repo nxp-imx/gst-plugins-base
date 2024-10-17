@@ -416,6 +416,9 @@ typedef struct _MultiQueueSlot
   gboolean is_drained;
 
   DecodebinOutputStream *output;
+
+  /* TRUE if multiqueue probes CAPS event */
+  gboolean probed_caps;
 } MultiQueueSlot;
 
 /* Streams that are exposed downstream (i.e. output) */
@@ -3500,6 +3503,7 @@ multiqueue_src_probe (GstPad * pad, GstPadProbeInfo * info,
         break;
       case GST_EVENT_CAPS:
       {
+        slot->probed_caps = TRUE;
         /* Configure the output slot if needed */
         mq_slot_check_reconfiguration (slot);
       }
@@ -3578,6 +3582,7 @@ create_new_slot (GstDecodebin3 * dbin, GstStreamType type)
       gst_stream_type_get_name (type));
   slot = g_new0 (MultiQueueSlot, 1);
   slot->dbin = dbin;
+  slot->probed_caps = FALSE;
 
   slot->id = dbin->slot_id++;
 
@@ -4110,7 +4115,8 @@ db_output_stream_reconfigure (DecodebinOutputStream * output, GstMessage ** msg)
     db_output_stream_reset (output);
 
     /* Setup the decoder */
-    ret = db_output_stream_setup_decoder (output, new_caps, msg);
+    if (slot->probed_caps)
+      ret = db_output_stream_setup_decoder (output, new_caps, msg);
   }
 
   gst_caps_unref (new_caps);
