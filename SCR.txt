@@ -4,6 +4,6 @@ Outgoing License:            LGPL-2.1
 License File:                LICENSE.txt
 Type of Content:             source
 Description and comments:    Open Source Multimedia Farmework
-Release Location:            https://github.com/nxp-imx/gstreamer -b lf-6.6.36-2.1.0
+Release Location:            https://github.com/nxp-imx/gstreamer -b lf-6.6.52-2.2.0
 Origin:                      NXP (LGPL-2.1)
                              GStreamer (LGPL-2.1+) - http://gstreamer.freedesktop.org/src/gstreamer/
