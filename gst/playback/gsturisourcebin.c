@@ -2148,6 +2148,12 @@ setup_parsebin_for_slot (ChildSrcPadInfo * info, GstPad * originating_pad)
     GST_DEBUG_OBJECT (urisrc, "Shutting down, returning early");
     return FALSE;
   }
+  GST_STATE_LOCK (urisrc);
+  if (g_atomic_int_get (&urisrc->flushing)) {
+    GST_DEBUG_OBJECT (urisrc, "Shutting down, returning early");
+    GST_STATE_UNLOCK (urisrc);
+    return FALSE;
+  }
   GST_URI_SOURCE_BIN_LOCK (urisrc);
 
   /* Set up optional pre-parsebin download/ringbuffer elements */
@@ -2172,6 +2178,7 @@ setup_parsebin_for_slot (ChildSrcPadInfo * info, GstPad * originating_pad)
           "ring-buffer-max-size", urisrc->ring_buffer_max_size,
           "max-size-buffers", 0, NULL);
     }
+    gst_element_set_locked_state (info->pre_parse_queue, TRUE);
     gst_bin_add (GST_BIN_CAST (urisrc), info->pre_parse_queue);
     sinkpad = gst_element_get_static_pad (info->pre_parse_queue, "sink");
     link_res = gst_pad_link (originating_pad, sinkpad);
@@ -2186,6 +2193,7 @@ setup_parsebin_for_slot (ChildSrcPadInfo * info, GstPad * originating_pad)
     post_missing_plugin_error (GST_ELEMENT_CAST (urisrc), "parsebin");
     return FALSE;
   }
+  gst_element_set_locked_state (info->demuxer, TRUE);
   gst_bin_add (GST_BIN_CAST (urisrc), info->demuxer);
 
   info->demuxer_is_parsebin = TRUE;
@@ -2214,15 +2222,23 @@ setup_parsebin_for_slot (ChildSrcPadInfo * info, GstPad * originating_pad)
       "autoplug-query", G_CALLBACK (demuxer_pad_autoplug_query_cb), info);
 
   if (info->pre_parse_queue) {
+    gst_element_set_locked_state (info->pre_parse_queue, FALSE);
     gst_element_sync_state_with_parent (info->pre_parse_queue);
   }
+  gst_element_set_locked_state (info->demuxer, FALSE);
   gst_element_sync_state_with_parent (info->demuxer);
   GST_URI_SOURCE_BIN_UNLOCK (urisrc);
+  GST_STATE_UNLOCK (urisrc);
   return TRUE;
 
 could_not_link:
   {
+    if (info->pre_parse_queue)
+      gst_element_set_locked_state (info->pre_parse_queue, FALSE);
+    if (info->demuxer)
+      gst_element_set_locked_state (info->demuxer, FALSE);
     GST_URI_SOURCE_BIN_UNLOCK (urisrc);
+    GST_STATE_UNLOCK (urisrc);
     GST_ELEMENT_ERROR (urisrc, CORE, NEGOTIATION,
         (NULL), ("Can't link to (pre-)parsebin element"));
     return FALSE;
@@ -3146,16 +3162,6 @@ handle_message (GstBin * bin, GstMessage * msg)
     case GST_MESSAGE_BUFFERING:
       handle_buffering_message (urisrc, msg);
       msg = NULL;
-      break;
-    case GST_MESSAGE_ERROR:
-    case GST_MESSAGE_WARNING:
-      if (g_atomic_int_get (&urisrc->flushing)) {
-        /* Errors/warnings when shutting down are non-critical */
-        GST_DEBUG_OBJECT (urisrc, "Flushing, ignoring message %" GST_PTR_FORMAT,
-            msg);
-        gst_message_unref (msg);
-        msg = NULL;
-      }
       break;
     default:
       break;
