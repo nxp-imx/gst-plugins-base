@@ -1573,20 +1573,12 @@ gst_play_bin3_get_property (GObject * object, guint prop_id, GValue * value,
 
   switch (prop_id) {
     case PROP_URI:
-    {
-      GST_PLAY_BIN3_LOCK (playbin);
       g_object_get_property ((GObject *) playbin->uridecodebin, "uri", value);
-      GST_PLAY_BIN3_UNLOCK (playbin);
       break;
-    }
     case PROP_CURRENT_URI:
-    {
-      GST_PLAY_BIN3_LOCK (playbin);
       g_object_get_property ((GObject *) playbin->uridecodebin, "current-uri",
           value);
-      GST_PLAY_BIN3_UNLOCK (playbin);
       break;
-    }
     case PROP_SUBURI:
     {
       GST_PLAY_BIN3_LOCK (playbin);
