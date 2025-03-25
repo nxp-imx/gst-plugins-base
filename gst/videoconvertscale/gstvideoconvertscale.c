@@ -1292,12 +1292,17 @@ gst_video_convert_scale_get_fixed_format (GstBaseTransform * trans,
     GstPadDirection direction, GstCaps * caps, GstCaps * othercaps)
 {
   GstCaps *result;
+  GstCaps *temp = gst_caps_copy (caps);
+  GstStructure *s = gst_caps_get_structure (temp, 0);
+  if (gst_structure_has_field (s, "colorimetry"))
+    gst_structure_remove_field (s, "colorimetry");
 
-  result = gst_caps_intersect (othercaps, caps);
+  result = gst_caps_intersect (othercaps, temp);
   if (gst_caps_is_empty (result)) {
     gst_caps_unref (result);
     result = gst_caps_copy (othercaps);
   }
+  gst_caps_unref (temp);
 
   result = gst_caps_make_writable (result);
   gst_video_convert_scale_fixate_format (trans, caps, result);
