@@ -1021,6 +1021,11 @@ gst_decodebin_input_stream_src_probe (GstPad * pad, GstPadProbeInfo * info,
       {
         GST_DEBUG_OBJECT (pad, "Marking input as EOS");
         input->saw_eos = TRUE;
+        /* If we are still waiting to be unblocked and we get eos, unblock */
+        if (input->buffer_probe_id) {
+          GST_DEBUG_OBJECT (pad, "Got a gap event! Unblocking input(s) !");
+          gst_decodebin_input_unblock_streams (input->input, TRUE);
+        }
       }
         break;
       case GST_EVENT_FLUSH_STOP:
