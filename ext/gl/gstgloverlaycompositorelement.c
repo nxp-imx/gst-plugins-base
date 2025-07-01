@@ -1,6 +1,7 @@
 /*
  * gloverlaycompositor element
  * Copyrithg (C) 2018 Matthew Waters <matthew@centricular.com>
+ * Copyright 2018,2024 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public

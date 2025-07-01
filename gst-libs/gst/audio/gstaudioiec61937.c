@@ -2,6 +2,7 @@
  * (c) 2011 Intel Corporation
  *     2011 Collabora Multimedia
  *     2011 Arun Raghavan <arun.raghavan@collabora.co.uk>
+ * Copyright 2019 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
