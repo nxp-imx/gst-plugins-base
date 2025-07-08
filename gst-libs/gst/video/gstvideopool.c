@@ -140,8 +140,21 @@ video_buffer_pool_set_config (GstBufferPool * pool, GstStructure * config)
     goto no_caps;
 
   /* now parse the caps from the config */
-  if (!gst_video_info_from_caps (&info, caps))
-    goto wrong_caps;
+  if (gst_video_is_dma_drm_caps (caps)) {
+    GstVideoInfoDmaDrm drm_info;
+    if (!gst_video_info_dma_drm_from_caps (&drm_info, caps))
+      goto wrong_caps;
+
+    if (!gst_video_info_dma_drm_to_video_info (&drm_info, &info))
+      goto wrong_caps;
+
+    if (GST_VIDEO_INFO_FORMAT (&info) == GST_VIDEO_FORMAT_DMA_DRM)
+      goto wrong_caps;
+  } else {
+    if (!gst_video_info_from_caps (&info, caps))
+      goto wrong_caps;
+  }
+
 
   if (size < info.size)
     goto wrong_size;
