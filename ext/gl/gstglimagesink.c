@@ -1892,8 +1892,14 @@ gst_glimage_sink_prepare (GstBaseSink * bsink, GstBuffer * buf)
     return GST_FLOW_NOT_NEGOTIATED;
 
   sync_meta = gst_buffer_get_gl_sync_meta (buf);
-  if (sync_meta)
-    gst_gl_sync_meta_wait (sync_meta, glimage_sink->context);
+  if (sync_meta) {
+    /* Check and apply synchronization from the CPU's perspective if needed */
+    if (gst_gl_sync_meta_can_wait_gl (sync_meta, glimage_sink->context)) {
+      gst_gl_sync_meta_wait (sync_meta, glimage_sink->context);
+    } else {
+      gst_gl_sync_meta_wait_cpu (sync_meta, glimage_sink->context);
+    }
+  }
 
   GST_GLIMAGE_SINK_LOCK (glimage_sink);
   if (glimage_sink->window_resized) {
