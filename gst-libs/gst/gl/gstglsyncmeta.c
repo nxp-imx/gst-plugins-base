@@ -209,6 +209,29 @@ gst_gl_sync_meta_set_sync_point (GstGLSyncMeta * sync_meta,
         (GstGLContextThreadFunc) _set_sync_point, sync_meta);
 }
 
+/**
+ * gst_gl_sync_meta_can_wait_gl:
+ * @sync_meta: a #GstGLSyncMeta
+ * @context: a #GstGLContext
+ *
+ * Check whether support inserting a wait into @context's command
+ * stream ensuring all previous OpenGL commands before @sync_meta
+ * have completed.
+ *
+ * Returns: %TRUE if it is support.
+ */
+gboolean
+gst_gl_sync_meta_can_wait_gl (GstGLSyncMeta * sync_meta, GstGLContext * context)
+{
+  const GstGLFuncs *gl = context->gl_vtable;
+
+  if (!sync_meta->data || !gl->WaitSync) {
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
 static void
 _wait (GstGLContext * context, GstGLSyncMeta * sync_meta)
 {

@@ -89,6 +89,8 @@ GST_GL_API
 void                gst_gl_sync_meta_wait               (GstGLSyncMeta * sync_meta, GstGLContext * context);
 GST_GL_API
 void                gst_gl_sync_meta_wait_cpu           (GstGLSyncMeta * sync_meta, GstGLContext * context);
+GST_GL_API
+gboolean            gst_gl_sync_meta_can_wait_gl        (GstGLSyncMeta * sync_meta, GstGLContext * context);
 
 G_END_DECLS
 
