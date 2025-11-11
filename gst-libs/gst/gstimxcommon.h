@@ -80,7 +80,7 @@ typedef enum
   CC_MX93 = CHIPCODE ('M', 'X', '9', '3'),
   CC_MX95 = CHIPCODE ('M', 'X', '9', '5'),
   CC_MX91 = CHIPCODE ('M', 'X', '9', '1'),
-  CC_MX943 = CHIPCODE ('M', 'X', '9', '4'),
+  CC_MX94 = CHIPCODE ('M', 'X', '9', '4'),
   CC_UNKN = CHIPCODE ('U', 'N', 'K', 'N')
 
 } CHIP_CODE;
@@ -135,7 +135,7 @@ typedef enum {
 #define IS_IMX93() (CC_MX93 == imx_chip_code())
 #define IS_IMX95() (CC_MX95 == imx_chip_code())
 #define IS_IMX91() (CC_MX91 == imx_chip_code())
-#define IS_IMX943() (CC_MX943 == imx_chip_code())
+#define IS_IMX94() (CC_MX94 == imx_chip_code())
 #define IS_IMX8Q() ((CC_MX8QM == imx_chip_code()) || (CC_MX8QXP == imx_chip_code()))
 #define IS_IMX6Q() (CC_MX6Q == imx_chip_code())
 
@@ -253,7 +253,9 @@ static SOC_INFO soc_info[] = {
   {CC_MX93, "i.MX93"},
   {CC_MX95, "i.MX95"},
   {CC_MX91, "i.MX91"},
-  {CC_MX943, "i.MX943"},
+  {CC_MX94, "i.MX943"},
+  {CC_MX94, "i.MX942"},
+  {CC_MX94, "i.MX941"},
 };
 
 static CHIP_CODE getChipCodeFromSocid (void)
@@ -345,7 +347,7 @@ static IMXV4l2FeatureMap g_imxv4l2feature_maps[] = {
   {CC_MX93, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE},
   {CC_MX95, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE},
   {CC_MX91, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE},
-  {CC_MX943, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE},
+  {CC_MX94, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE},
 };
 
 
