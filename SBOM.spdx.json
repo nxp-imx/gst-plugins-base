@@ -1,0 +1,69 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "creationInfo": {
+    "created": "2025-11-12T06:52:01Z",
+    "creators": [
+      "Organization: NXP"
+    ],
+    "licenseListVersion": "3.20"
+  },
+  "name": "gst-plugins-base-LF_6.12.49_2.2.0",
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://nxp.com/spdx/ba7cc213-d005-4069-92b1-741ab13ee97e",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-package-9a4ac84e-9830-48f3-bc35-a596632d9cd3",
+      "name": "GStreamer",
+      "versionInfo": "1.26.6",
+      "licenseConcluded": "LGPL-2.1-or-later",
+      "licenseDeclared": "(LGPL-2.0-or-later OR GPL-2.0-or-later)",
+      "homepage": "https://gstreamer.freedesktop.org/",
+      "downloadLocation": "NOASSERTION",
+      "originator": "Organization: GStreamer",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:2.3:a:gstreamer_project:gstreamer:1.26.6:*:*:*:*:*:*:*",
+          "referenceType": "cpe23Type"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:2.3:a:gstreamer:gstreamer:1.26.6:*:*:*:*:*:*:*",
+          "referenceType": "cpe23Type"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:2.3:a:gstreamer:good_plug-ins:1.26.6:*:*:*:*:*:*:*",
+          "referenceType": "cpe23Type"
+        }
+      ],
+      "filesAnalyzed": false
+    },
+    {
+      "SPDXID": "SPDXRef-package-ba7cc213-d005-4069-92b1-741ab13ee97e",
+      "name": "gst-plugins-base",
+      "versionInfo": "LF_6.12.49_2.2.0",
+      "licenseConcluded": "(LGPL-2.1-or-later)",
+      "licenseDeclared": "(LGPL-2.1-or-later)",
+      "downloadLocation": "https://github.com/nxp-imx/gst-plugins-base -b lf-6.12.49-2.2.0",
+      "originator": "Organization: NXP",
+      "supplier": "NOASSERTION",
+      "externalRefs": [],
+      "filesAnalyzed": false
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-package-ba7cc213-d005-4069-92b1-741ab13ee97e",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-package-9a4ac84e-9830-48f3-bc35-a596632d9cd3"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-package-ba7cc213-d005-4069-92b1-741ab13ee97e"
+    }
+  ]
+}
