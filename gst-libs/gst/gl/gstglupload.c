@@ -1737,14 +1737,40 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
   if (!gst_is_dmabuf_memory (gst_buffer_peek_memory (buffer, 0))) {
     GstVideoFrame frame1, frame2;
     GstVideoInfo map_in_info;
+    gboolean need_recreate = FALSE;
 
     gst_video_info_from_caps (&map_in_info, in_caps);
     gst_video_frame_map (&frame1, &map_in_info, buffer, GST_MAP_READ);
 
-    if (!dmabuf->pool) {
+    /* The resolution of some streams may change when playing.
+     * Need to check if it's necessary to recreate buffer pool.
+     */
+    GstCaps *new_caps = gst_video_info_to_caps (&frame1.info);
+    if (dmabuf->pool) {
+      GstCaps *old_caps;
+      GstStructure *config;
+
+      config = gst_buffer_pool_get_config (dmabuf->pool);
+      gst_buffer_pool_config_get_params (config, &old_caps, NULL, NULL, NULL);
+      if (gst_caps_is_equal (new_caps, old_caps)) {
+        gst_caps_unref (new_caps);
+      } else {
+        need_recreate = TRUE;
+      }
+      gst_structure_free (config);
+    }
+
+    if (!dmabuf->pool || need_recreate) {
       gboolean ret;
-      GstCaps *new_caps = gst_video_info_to_caps (&frame1.info);
       gst_video_info_from_caps (in_info, new_caps);
+
+      if (dmabuf->pool) {
+        GstBufferPool *pool = dmabuf->pool;
+        dmabuf->pool = NULL;
+        gst_buffer_pool_set_active (pool, FALSE);
+        gst_object_unref (pool);
+        GST_DEBUG_OBJECT (dmabuf->upload, "unref pool because video info is changed");
+      }
 
       ret =
           _dma_buf_upload_setup_buffer_pool (&dmabuf->pool, NULL, new_caps,
