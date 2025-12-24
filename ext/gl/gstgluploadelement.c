@@ -25,6 +25,7 @@
 #include <stdio.h>
 
 #include <gst/gl/gl.h>
+#include <gst/allocators/gstdmabuf.h>
 
 #include "gstglelements.h"
 #include "gstgluploadelement.h"
@@ -329,7 +330,7 @@ again:
     GstVideoCropMeta *incropmeta, *outcropmeta;
     /* add video crop meta to out buffer if need */
     incropmeta = gst_buffer_get_video_crop_meta (buffer);
-    if (incropmeta) {
+    if (incropmeta && !gst_is_dmabuf_memory (gst_buffer_peek_memory (buffer, 0))) {
       outcropmeta = gst_buffer_add_video_crop_meta (*outbuf);
       outcropmeta->x = incropmeta->x;
       outcropmeta->y = incropmeta->y;

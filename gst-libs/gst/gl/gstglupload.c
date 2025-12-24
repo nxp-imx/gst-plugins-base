@@ -1367,7 +1367,6 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
     GST_DEBUG_OBJECT (dmabuf->upload, "got crop meta (%d)x(%d)",
         in_info->width, in_info->height);
-    gst_buffer_remove_meta (buffer, (GstMeta *) crop);
   }
 
   /* We cannot have multiple dmabuf per plane */
