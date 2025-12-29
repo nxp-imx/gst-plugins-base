@@ -282,6 +282,9 @@ struct _GstDecodebin3
   GList *slots;                 /* List of MultiQueueSlot */
   guint slot_id;
 
+  gboolean posting_selection;
+  GCond posting_selection_cond;
+
   /* List of DecodebinCollection in existence. ordered by oldest (i.e. first is
    * currently outputted, last is most recent incoming */
   GList *collections;
@@ -742,7 +745,9 @@ gst_decodebin3_init (GstDecodebin3 * dbin)
   g_mutex_init (&dbin->selection_lock);
   g_mutex_init (&dbin->input_lock);
   g_cond_init (&dbin->posting_cond);
+  g_cond_init (&dbin->posting_selection_cond);
   dbin->posting_collection = FALSE;
+  dbin->posting_selection = FALSE;
 
   dbin->caps = gst_static_caps_get (&default_raw_caps);
 
@@ -842,6 +847,7 @@ gst_decodebin3_finalize (GObject * object)
   g_mutex_clear (&dbin->selection_lock);
   g_mutex_clear (&dbin->input_lock);
   g_cond_clear (&dbin->posting_cond);
+  g_cond_clear (&dbin->posting_selection_cond);
 
   G_OBJECT_CLASS (parent_class)->finalize (object);
 }
@@ -3301,9 +3307,20 @@ mq_slot_check_reconfiguration (MultiQueueSlot * slot)
   GstMessage *selection_msg = is_selection_done (dbin);
   /* We reconfigured the associated output. Check if we're done with
    * the current selection */
-  SELECTION_UNLOCK (dbin);
-  if (selection_msg)
+  if (selection_msg) {
+    while (dbin->posting_selection)
+      g_cond_wait (&dbin->posting_selection_cond, &dbin->selection_lock);
+    GST_WARNING_OBJECT (dbin, "Posting selection");
+    dbin->posting_selection = TRUE;
+    SELECTION_UNLOCK (dbin);
     gst_element_post_message ((GstElement *) slot->dbin, selection_msg);
+    SELECTION_LOCK (dbin);
+    dbin->posting_selection = FALSE;
+    GST_WARNING_OBJECT (dbin, "Done post selection");
+    g_cond_broadcast (&dbin->posting_selection_cond);
+  }
+
+  SELECTION_UNLOCK (dbin);
 }
 
 /* Update the `all_streams_present` state of the provided collection by checking
