@@ -3488,8 +3488,9 @@ mq_slot_handle_stream_start (MultiQueueSlot * slot, GstEvent * stream_event)
     goto check_for_switch;
   }
 
-  /* If the new collection is fully present, we can switch */
-  if (collection->all_streams_present) {
+  /* If the new collection is fully present or ourput collection
+     is deprecated, we can switch */
+  if (collection->all_streams_present || dbin->output_collection->is_deprecated) {
     GST_DEBUG_OBJECT (dbin, "Switching to new output collection");
     dbin->collections =
         g_list_remove (dbin->collections, dbin->output_collection);
