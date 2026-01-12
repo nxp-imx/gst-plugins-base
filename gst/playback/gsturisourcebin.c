@@ -2143,8 +2143,10 @@ setup_parsebin_for_slot (ChildSrcPadInfo * info, GstPad * originating_pad)
   GST_DEBUG_OBJECT (urisrc, "Setting up parsebin for %" GST_PTR_FORMAT,
       originating_pad);
 
+  GST_STATE_LOCK (urisrc);
   if (g_atomic_int_get (&urisrc->flushing)) {
     GST_DEBUG_OBJECT (urisrc, "Shutting down, returning early");
+    GST_STATE_UNLOCK (urisrc);
     return FALSE;
   }
   GST_URI_SOURCE_BIN_LOCK (urisrc);
@@ -2182,6 +2184,8 @@ setup_parsebin_for_slot (ChildSrcPadInfo * info, GstPad * originating_pad)
 
   info->demuxer = gst_element_factory_make ("parsebin", NULL);
   if (!info->demuxer) {
+    GST_URI_SOURCE_BIN_UNLOCK (urisrc);
+    GST_STATE_UNLOCK (urisrc);
     post_missing_plugin_error (GST_ELEMENT_CAST (urisrc), "parsebin");
     return FALSE;
   }
@@ -2225,12 +2229,14 @@ setup_parsebin_for_slot (ChildSrcPadInfo * info, GstPad * originating_pad)
   gst_element_set_locked_state (info->demuxer, FALSE);
   gst_element_sync_state_with_parent (info->demuxer);
   GST_URI_SOURCE_BIN_UNLOCK (urisrc);
+  GST_STATE_UNLOCK (urisrc);
   return TRUE;
 
 could_not_link:
   {
     gst_element_set_locked_state (info->demuxer, FALSE);
     GST_URI_SOURCE_BIN_UNLOCK (urisrc);
+    GST_STATE_UNLOCK (urisrc);
     GST_ELEMENT_ERROR (urisrc, CORE, NEGOTIATION,
         (NULL), ("Can't link to (pre-)parsebin element"));
     return FALSE;
