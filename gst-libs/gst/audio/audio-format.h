@@ -134,7 +134,6 @@ typedef enum {
   GST_AUDIO_FORMAT_F32BE,
   GST_AUDIO_FORMAT_F64LE,
   GST_AUDIO_FORMAT_F64BE,
-  GST_AUDIO_FORMAT_IEC958_SUBFRAME_LE,
   /* 20 bit in 32 bits */
   /**
    * GST_AUDIO_FORMAT_S20_32LE:
@@ -170,6 +169,7 @@ typedef enum {
   GST_AUDIO_FORMAT_U20_32BE,
 
   /* Update GST_AUDIO_FORMAT_LAST below when adding more formats here */
+  GST_AUDIO_FORMAT_IEC958_SUBFRAME_LE,
 
   /* native endianness equivalents */
   GST_AUDIO_FORMAT_S16 = _GST_AUDIO_FORMAT_NE(S16),
