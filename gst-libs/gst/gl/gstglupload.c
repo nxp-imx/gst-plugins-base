@@ -2164,6 +2164,13 @@ _direct_dma_buf_upload_transform_caps (gpointer impl, GstGLContext * context,
       return NULL;
     }
 
+    /* The direct mode, sampling an imported texture will return an RGBA
+       vector in the same colorspace as the source image. If the source
+       image is stored in YUV(or some other basis) then the YUV values will
+       be transformed to RGB values. So, any input format is transformed to:
+       "video/x-raw(memory:GLMemory), format=(string)RGBA" as output. */
+    gst_caps_set_simple (ret, "format", G_TYPE_STRING, "RGBA", NULL);
+
     n = gst_caps_get_size (ret);
     for (i = 0; i < n; i++) {
       GstStructure *s = gst_caps_get_structure (ret, i);
