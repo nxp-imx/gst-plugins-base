@@ -1963,12 +1963,20 @@ _dma_buf_upload_propose_allocation (gpointer impl, GstQuery * decide_query,
   GstAllocator *allocator = NULL;
   GstCaps *caps;
   GstCapsFeatures *caps_features;
+  GstVideoInfoDmaDrm drm_info;
   GstVideoInfo info;
 
   gst_query_parse_allocation (query, &caps, NULL);
 
-  if (!gst_video_info_from_caps (&info, caps))
-    goto invalid_caps;
+  if (gst_video_is_dma_drm_caps (caps)) {
+    if (!gst_video_info_dma_drm_from_caps (&drm_info, caps))
+      goto invalid_caps;
+
+    gst_video_info_dma_drm_to_video_info (&drm_info, &info);
+  } else {
+    if (!gst_video_info_from_caps (&info, caps))
+      goto invalid_caps;
+  }
 
   caps_features = gst_caps_get_features (caps, 0);
   if (gst_caps_features_contains (caps_features, "memory:GLMemory")) {
@@ -3150,6 +3158,7 @@ _directviv_upload_propose_allocation (gpointer impl, GstQuery * decide_query,
   GstBufferPool *pool = NULL;
   GstAllocator *allocator = NULL;
   GstCaps *caps;
+  GstVideoInfoDmaDrm drm_info;
   GstVideoInfo info;
   GstVideoFormat fmt = GST_VIDEO_FORMAT_UNKNOWN;
   GstCapsFeatures * caps_features;
@@ -3162,8 +3171,15 @@ _directviv_upload_propose_allocation (gpointer impl, GstQuery * decide_query,
 
   gst_query_parse_allocation (query, &caps, NULL);
 
-  if (!gst_video_info_from_caps (&info, caps))
-    goto invalid_caps;
+  if (gst_video_is_dma_drm_caps (caps)) {
+    if (!gst_video_info_dma_drm_from_caps (&drm_info, caps))
+      goto invalid_caps;
+
+    gst_video_info_dma_drm_to_video_info (&drm_info, &info);
+  } else {
+    if (!gst_video_info_from_caps (&info, caps))
+      goto invalid_caps;
+  }
 
   caps_features = gst_caps_get_features (caps, 0);
   if (gst_caps_features_contains (caps_features, "memory:GLMemory")) {
