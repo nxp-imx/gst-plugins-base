@@ -1671,6 +1671,7 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
   gsize offset[GST_VIDEO_MAX_PLANES];
   gint fd[GST_VIDEO_MAX_PLANES];
   guint i;
+  GstVideoInfoDmaDrm drm_info;
 
   n_mem = gst_buffer_n_memory (buffer);
   meta = gst_buffer_get_video_meta (buffer);
@@ -1734,7 +1735,13 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
     GstVideoInfo map_in_info;
     gboolean need_recreate = FALSE;
 
-    gst_video_info_from_caps (&map_in_info, in_caps);
+    if (gst_video_is_dma_drm_caps (in_caps)) {
+      if (gst_video_info_dma_drm_from_caps (&drm_info, in_caps))
+        gst_video_info_dma_drm_to_video_info (&drm_info, &map_in_info);
+    } else {
+      gst_video_info_from_caps (&map_in_info, in_caps);
+    }
+
     gst_video_frame_map (&frame1, &map_in_info, buffer, GST_MAP_READ);
 
     /* The resolution of some streams may change when playing.
@@ -1757,7 +1764,13 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
     if (!dmabuf->pool || need_recreate) {
       gboolean ret;
-      gst_video_info_from_caps (in_info, new_caps);
+
+      if (gst_video_is_dma_drm_caps (new_caps)) {
+        if (gst_video_info_dma_drm_from_caps (&drm_info, new_caps))
+          gst_video_info_dma_drm_to_video_info (&drm_info, in_info);
+      } else {
+        gst_video_info_from_caps (in_info, new_caps);
+      }
 
       if (dmabuf->pool) {
         GstBufferPool *pool = dmabuf->pool;
@@ -1838,8 +1851,16 @@ _dma_buf_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
   if (out_caps != dmabuf->out_caps) {
     dmabuf->out_caps = out_caps;
-    if (!gst_video_info_from_caps (out_info, out_caps))
-      return FALSE;
+
+    if (gst_video_is_dma_drm_caps (out_caps)) {
+      if (!gst_video_info_dma_drm_from_caps (&drm_info, out_caps))
+        return FALSE;
+
+      gst_video_info_dma_drm_to_video_info (&drm_info, out_info);
+    } else {
+      if (!gst_video_info_from_caps (out_info, out_caps))
+        return FALSE;
+    }
 
     /*
      * The display path needs to know the size of the texture to clip it, so we
@@ -3087,6 +3108,7 @@ _directviv_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
   GstVideoInfo *in_info = &directviv->upload->priv->in_info;
   GstVideoFormat fmt =
       GST_VIDEO_INFO_FORMAT (&directviv->upload->priv->out_info);
+  GstVideoInfoDmaDrm drm_info;
   if (fmt != GST_VIDEO_FORMAT_RGBA)
     return FALSE;
 
@@ -3097,7 +3119,13 @@ _directviv_upload_accept (gpointer impl, GstBuffer * buffer, GstCaps * in_caps,
 
     gst_video_frame_map (&frame1, in_info, buffer, GST_MAP_READ);
     new_caps = gst_video_info_to_caps (&frame1.info);
-    gst_video_info_from_caps (&info, new_caps);
+
+    if (gst_video_is_dma_drm_caps (new_caps)) {
+      if (gst_video_info_dma_drm_from_caps (&drm_info, new_caps))
+        gst_video_info_dma_drm_to_video_info (&drm_info, &info);
+    } else {
+      gst_video_info_from_caps (&info, new_caps);
+    }
 
     if (!directviv->pool
         || !_directviv_upload_buffer_pool_is_ok (directviv->pool, new_caps,
